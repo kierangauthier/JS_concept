@@ -13,7 +13,11 @@ const iconMap: Record<string, React.ElementType> = {
 export function MobileNav() {
   const { currentUser } = useApp();
   const location = useLocation();
-  const navItems = getNavForRole(currentUser.role).slice(0, 5); // Show max 5 on mobile
+
+  // Techniciens use the TerrainLayout with its own bottom nav
+  if (currentUser.role === 'technicien') return null;
+
+  const navItems = getNavForRole(currentUser.role).slice(0, 5);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-card border-t z-40 flex items-center justify-around h-14 px-1">
