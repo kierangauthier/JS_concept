@@ -1,17 +1,33 @@
 import { useFilterByCompany } from '@/contexts/AppContext';
-import { mockJobs } from '@/services/mockData';
+import { useOfflineQuery } from '@/services/offline/hooks';
+import { jobsApi } from '@/services/api/jobs.api';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { MapPin, ChevronRight } from 'lucide-react';
+import { MapPin, ChevronRight, Briefcase } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function TerrainJobs() {
-  const jobs = useFilterByCompany(mockJobs).filter(j => ['in_progress', 'planned'].includes(j.status));
+  const { data: apiJobs, isLoading } = useOfflineQuery(
+    'jobs:all',
+    ['jobs'],
+    () => jobsApi.list({ limit: 200 }).then(r => r.data),
+  );
+  const jobs = useFilterByCompany(apiJobs ?? []).filter(j => ['in_progress', 'planned'].includes(j.status));
+
+  if (isLoading) {
+    return (
+      <div className="max-w-lg mx-auto space-y-4">
+        <div><Skeleton className="h-6 w-32" /><Skeleton className="h-4 w-48 mt-1" /></div>
+        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-lg mx-auto space-y-4">
       <div>
         <h1 className="text-xl font-bold">Chantiers</h1>
-        <p className="text-xs text-muted-foreground">{jobs.length} chantiers assignés</p>
+        <p className="text-xs text-muted-foreground">{jobs.length} chantier{jobs.length > 1 ? 's' : ''} assigné{jobs.length > 1 ? 's' : ''}</p>
       </div>
 
       <div className="space-y-2">
@@ -38,6 +54,13 @@ export default function TerrainJobs() {
           </Link>
         ))}
       </div>
+
+      {jobs.length === 0 && (
+        <div className="text-center py-12">
+          <Briefcase className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Aucun chantier actif</p>
+        </div>
+      )}
     </div>
   );
 }

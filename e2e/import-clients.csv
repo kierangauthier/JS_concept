@@ -1,0 +1,13 @@
+externalRef;nom;contact;email;telephone;adresse;ville;code_postal;type
+CLI-001;Mairie de Lyon;Jean-Luc Faure;travaux@mairie-lyon.fr;04 72 10 30 00;1 Place de la Comédie;Lyon;69001;public
+CLI-002;Métropole de Lyon;Antoine Dumas;voirie@grandlyon.fr;04 26 99 10 21;20 Rue du Lac;Lyon;69003;public
+CLI-003;Commune de Villeurbanne;Marc Legrand;technique@villeurbanne.fr;04 78 03 67 67;Place Lazare Goujon;Villeurbanne;69100;public
+CLI-004;SNCF Réseau;Isabelle Moreau;projets-ra@sncf-reseau.fr;04 72 40 50 00;12 Rue de la Villette;Lyon;69003;public
+CLI-005;Eiffage Route Rhône;Patrick Noir;pnoir@eiffage.com;04 72 81 00 00;8 Rue Paul Bert;Lyon;69003;private
+CLI-006;Département Rhone;Pierre Morel;marches@rhone.fr;04 72 61 60 00;2 Rue de la Préfecture;Lyon;69002;public
+CLI-007;Commune de Bron;Claire Vigneron;technique@bron.fr;04 72 14 80 00;1 Avenue Marcel Cachin;Bron;69500;public
+CLI-008;Eurovia Rhône-Alpes;Sophie Lambert;slambert@eurovia.fr;04 74 95 00 00;ZI Les Chesnes;Vénissieux;69200;private
+;mairie de lyon;Jean Faure;jfaure@mairie-lyon.fr;;;Lyon;;public
+;Métropole Grand Lyon;Sophie Renard;directions@grandlyon.fr;04 26 99 10 20;20 Rue du Lac;Lyon;;public
+;Commune Bron;Claire V.;technique@ville-bron.fr;;;Bron;;public
+;Société Nouvelle Durand;Henri Durand;hdurand@sndurand.fr;04 78 44 33 22;14 Rue Garibaldi;Lyon;69006;private

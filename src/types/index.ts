@@ -100,5 +100,6 @@ export interface TimeEntry {
   date: string;
   hours: number;
   description: string;
+  status: 'draft' | 'submitted' | 'approved' | 'rejected';
   company: Company;
 }

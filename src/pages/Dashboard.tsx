@@ -1,12 +1,14 @@
-import { useFilterByCompany } from '@/contexts/AppContext';
-import { mockQuotes, mockJobs, mockInvoices, mockPurchases, mockTimeEntries } from '@/services/mockData';
-import { mockWorkshopItems } from '@/services/mockDataExtended';
+import { useFilterByCompany, useApp } from '@/contexts/AppContext';
 import { StatusBadge, CompanyBadge } from '@/components/shared/StatusBadge';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   TrendingUp, FileText, HardHat, Receipt, AlertTriangle, Clock,
   Camera, ShoppingCart, CheckCircle2, XCircle, ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQuotes, useJobs, useInvoices, usePurchases, useTimeEntries, useWorkshopItems, useDashboardMargins } from '@/services/api/hooks';
+import { CashflowWidget } from '@/components/dashboard/CashflowWidget';
 
 interface Alert {
   id: string;
@@ -19,12 +21,24 @@ interface Alert {
 }
 
 export default function Dashboard() {
-  const quotes = useFilterByCompany(mockQuotes);
-  const jobs = useFilterByCompany(mockJobs);
-  const invoices = useFilterByCompany(mockInvoices);
-  const purchases = useFilterByCompany(mockPurchases);
-  const timeEntries = useFilterByCompany(mockTimeEntries);
-  const workshopItems = useFilterByCompany(mockWorkshopItems);
+  const { currentUser } = useApp();
+  const isComptable = currentUser?.role === 'comptable';
+  const { data: apiQuotes, isLoading: loadingQuotes } = useQuotes();
+  const { data: apiJobs, isLoading: loadingJobs } = useJobs();
+  const { data: apiInvoices, isLoading: loadingInvoices } = useInvoices();
+  const { data: apiPurchases, isLoading: loadingPurchases } = usePurchases();
+  const { data: apiTimeEntries, isLoading: loadingTime } = useTimeEntries();
+  const { data: apiWorkshopItems, isLoading: loadingWorkshop } = useWorkshopItems();
+  const { data: dashboardMargins } = useDashboardMargins();
+
+  const isLoading = loadingQuotes || loadingJobs || loadingInvoices || loadingPurchases || loadingTime || loadingWorkshop;
+
+  const quotes = useFilterByCompany(apiQuotes ?? []);
+  const jobs = useFilterByCompany(apiJobs ?? []);
+  const invoices = useFilterByCompany(apiInvoices ?? []);
+  const purchases = useFilterByCompany(apiPurchases ?? []);
+  const timeEntries = useFilterByCompany(apiTimeEntries ?? []);
+  const workshopItems = useFilterByCompany(apiWorkshopItems ?? []);
 
   const totalCA = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0);
   const activeJobs = jobs.filter(j => j.status === 'in_progress');
@@ -33,7 +47,16 @@ export default function Dashboard() {
   const unreceived = purchases.filter(p => p.status === 'ordered');
   const batPending = workshopItems.filter(w => w.status === 'bat_pending');
 
-  const stats = [
+  const totalInvoiced = invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((s, i) => s + i.amount, 0);
+  const totalPurchases = purchases.reduce((s, p) => s + p.amount, 0);
+  const purchasesUnpaid = purchases.filter(p => p.status !== 'received').reduce((s, p) => s + p.amount, 0);
+
+  const stats = isComptable ? [
+    { label: 'CA encaissé', value: `${(totalCA / 1000).toFixed(0)}k €`, icon: TrendingUp, color: 'text-success' },
+    { label: 'Créances', value: `${(totalInvoiced / 1000).toFixed(0)}k €`, icon: Receipt, color: 'text-warning' },
+    { label: 'Factures en retard', value: overdueInvoices.length, icon: AlertTriangle, color: 'text-destructive' },
+    { label: 'Dettes fournisseurs', value: `${(purchasesUnpaid / 1000).toFixed(0)}k €`, icon: ShoppingCart, color: 'text-info' },
+  ] : [
     { label: 'CA encaissé', value: `${(totalCA / 1000).toFixed(0)}k €`, icon: TrendingUp, color: 'text-success' },
     { label: 'Chantiers actifs', value: activeJobs.length, icon: HardHat, color: 'text-info' },
     { label: 'Devis en attente', value: pendingQuotes.length, icon: FileText, color: 'text-primary' },
@@ -96,6 +119,19 @@ export default function Dashboard() {
     });
   }
 
+  // Low margin jobs
+  if (dashboardMargins && dashboardMargins.lowMarginCount > 0) {
+    alerts.push({
+      id: 'low-margin',
+      type: 'warning',
+      icon: TrendingUp,
+      title: `${dashboardMargins.lowMarginCount} chantier(s) avec marge < 15%`,
+      detail: dashboardMargins.lowMarginJobs.slice(0, 3).map(j => `${j.reference} (${j.marginPercent}%)`).join(', '),
+      link: '/jobs',
+      linkLabel: 'Voir chantiers',
+    });
+  }
+
   // BAT pending
   if (batPending.length > 0) {
     alerts.push({
@@ -122,6 +158,25 @@ export default function Dashboard() {
 
   const recentJobs = activeJobs.slice(0, 6);
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-4 w-56 mt-1" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
+        </div>
+        <Skeleton className="h-48 w-full rounded-lg" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -143,13 +198,17 @@ export default function Dashboard() {
       </div>
 
       {/* Command Center */}
-      {alerts.length > 0 && (
-        <div className="bg-card rounded-lg border">
-          <div className="px-4 py-3 border-b flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <h2 className="text-sm font-semibold">Centre de commande</h2>
+      <div className="bg-card rounded-lg border">
+        <div className="px-4 py-3 border-b flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <h2 className="text-sm font-semibold">Centre de commande</h2>
+          {alerts.length > 0 && (
             <span className="text-xs text-muted-foreground bg-warning/15 text-warning-foreground rounded-full px-2 py-0.5 font-medium">{alerts.length}</span>
-          </div>
+          )}
+        </div>
+        {alerts.length === 0 ? (
+          <EmptyState icon={CheckCircle2} title="Aucune alerte" description="Tout est en ordre, aucune action requise." />
+        ) : (
           <div className="divide-y">
             {alerts.map(alert => (
               <div key={alert.id} className={`px-4 py-3 flex items-center gap-3 border-l-2 ${alertColors[alert.type]}`}>
@@ -164,8 +223,8 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Active jobs */}
       <div className="bg-card rounded-lg border">
@@ -201,28 +260,105 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Margin widget */}
+      {!isComptable && dashboardMargins && (dashboardMargins.best.length > 0 || dashboardMargins.worst.length > 0) && (
+        <div className="bg-card rounded-lg border">
+          <div className="px-4 py-3 border-b flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Marges chantiers</h2>
+            </div>
+            <span className={`text-sm font-bold ${dashboardMargins.avgMargin >= 25 ? 'text-success' : dashboardMargins.avgMargin >= 15 ? 'text-warning' : 'text-destructive'}`}>
+              Moy. {dashboardMargins.avgMargin}%
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x">
+            {/* Best margins */}
+            <div className="p-4">
+              <div className="text-xs font-medium text-success uppercase tracking-wider mb-3">Meilleures marges</div>
+              <div className="space-y-2">
+                {dashboardMargins.best.map(m => (
+                  <div key={m.id} className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-muted-foreground w-28 truncate">{m.reference}</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-success/70" style={{ width: `${Math.min(Math.max(m.marginPercent, 0), 100)}%` }} />
+                    </div>
+                    <span className="text-xs font-bold text-success w-12 text-right">{m.marginPercent}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Worst margins */}
+            <div className="p-4">
+              <div className="text-xs font-medium text-destructive uppercase tracking-wider mb-3">Marges à surveiller</div>
+              <div className="space-y-2">
+                {dashboardMargins.worst.map(m => (
+                  <div key={m.id} className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-muted-foreground w-28 truncate">{m.reference}</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className={`h-full rounded-full ${m.marginPercent >= 15 ? 'bg-warning/70' : 'bg-destructive/70'}`} style={{ width: `${Math.min(Math.max(m.marginPercent, 0), 100)}%` }} />
+                    </div>
+                    <span className={`text-xs font-bold w-12 text-right ${m.marginPercent >= 15 ? 'text-warning' : 'text-destructive'}`}>{m.marginPercent}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cashflow forecast widget */}
+      <CashflowWidget />
+
       {/* Quick stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card rounded-lg border p-4">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Devis acceptés</div>
-          <div className="text-xl font-bold">{quotes.filter(q => q.status === 'accepted').length}</div>
-          <div className="text-xs text-muted-foreground">{quotes.filter(q => q.status === 'accepted').reduce((s, q) => s + q.amount, 0).toLocaleString('fr-FR')} € HT</div>
-        </div>
-        <div className="bg-card rounded-lg border p-4">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Commandes en cours</div>
-          <div className="text-xl font-bold">{unreceived.length}</div>
-          <div className="text-xs text-muted-foreground">{unreceived.reduce((s, p) => s + p.amount, 0).toLocaleString('fr-FR')} €</div>
-        </div>
-        <div className="bg-card rounded-lg border p-4">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Fabrications atelier</div>
-          <div className="text-xl font-bold">{workshopItems.filter(w => w.status === 'fabrication').length}</div>
-          <div className="text-xs text-muted-foreground">{batPending.length} BAT en attente</div>
-        </div>
-        <div className="bg-card rounded-lg border p-4">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Chantiers terminés</div>
-          <div className="text-xl font-bold">{jobs.filter(j => j.status === 'completed').length}</div>
-          <div className="text-xs text-muted-foreground">ce mois</div>
-        </div>
+        {isComptable ? (
+          <>
+            <div className="bg-card rounded-lg border p-4">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Factures émises</div>
+              <div className="text-xl font-bold">{invoices.filter(i => i.status === 'sent').length}</div>
+              <div className="text-xs text-muted-foreground">{invoices.filter(i => i.status === 'sent').reduce((s, i) => s + i.amount, 0).toLocaleString('fr-FR')} €</div>
+            </div>
+            <div className="bg-card rounded-lg border p-4">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Factures payées</div>
+              <div className="text-xl font-bold">{invoices.filter(i => i.status === 'paid').length}</div>
+              <div className="text-xs text-muted-foreground">{totalCA.toLocaleString('fr-FR')} €</div>
+            </div>
+            <div className="bg-card rounded-lg border p-4">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Commandes fournisseurs</div>
+              <div className="text-xl font-bold">{purchases.length}</div>
+              <div className="text-xs text-muted-foreground">{totalPurchases.toLocaleString('fr-FR')} €</div>
+            </div>
+            <div className="bg-card rounded-lg border p-4">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Créances &gt;30j</div>
+              <div className="text-xl font-bold text-destructive">{overdueInvoices.length}</div>
+              <div className="text-xs text-muted-foreground">{overdueInvoices.reduce((s, i) => s + i.amount, 0).toLocaleString('fr-FR')} €</div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="bg-card rounded-lg border p-4">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Devis acceptés</div>
+              <div className="text-xl font-bold">{quotes.filter(q => q.status === 'accepted').length}</div>
+              <div className="text-xs text-muted-foreground">{quotes.filter(q => q.status === 'accepted').reduce((s, q) => s + q.amount, 0).toLocaleString('fr-FR')} € HT</div>
+            </div>
+            <div className="bg-card rounded-lg border p-4">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Commandes en cours</div>
+              <div className="text-xl font-bold">{unreceived.length}</div>
+              <div className="text-xs text-muted-foreground">{unreceived.reduce((s, p) => s + p.amount, 0).toLocaleString('fr-FR')} €</div>
+            </div>
+            <div className="bg-card rounded-lg border p-4">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Fabrications atelier</div>
+              <div className="text-xl font-bold">{workshopItems.filter(w => w.status === 'fabrication').length}</div>
+              <div className="text-xs text-muted-foreground">{batPending.length} BAT en attente</div>
+            </div>
+            <div className="bg-card rounded-lg border p-4">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Chantiers terminés</div>
+              <div className="text-xl font-bold">{jobs.filter(j => j.status === 'completed').length}</div>
+              <div className="text-xs text-muted-foreground">ce mois</div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

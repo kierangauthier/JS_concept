@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, X, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { mockClients, mockQuotes, mockJobs, mockInvoices } from '@/services/mockData';
+import { useSearch } from '@/services/api/hooks';
 import { useNavigate } from 'react-router-dom';
 
 interface SearchResult {
@@ -14,27 +14,46 @@ interface SearchResult {
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const results = useMemo<SearchResult[]>(() => {
-    if (query.length < 2) return [];
-    const q = query.toLowerCase();
-    const r: SearchResult[] = [];
-
-    mockClients.filter(c => c.name.toLowerCase().includes(q) || c.city.toLowerCase().includes(q))
-      .slice(0, 5).forEach(c => r.push({ type: 'client', label: c.name, sub: c.city, path: '/clients' }));
-
-    mockQuotes.filter(d => d.reference.toLowerCase().includes(q) || d.subject.toLowerCase().includes(q) || d.clientName.toLowerCase().includes(q))
-      .slice(0, 5).forEach(d => r.push({ type: 'devis', label: d.reference, sub: d.subject, path: '/quotes' }));
-
-    mockJobs.filter(j => j.reference.toLowerCase().includes(q) || j.title.toLowerCase().includes(q) || j.clientName.toLowerCase().includes(q))
-      .slice(0, 5).forEach(j => r.push({ type: 'chantier', label: j.reference, sub: j.title, path: '/jobs' }));
-
-    mockInvoices.filter(f => f.reference.toLowerCase().includes(q) || f.clientName.toLowerCase().includes(q))
-      .slice(0, 5).forEach(f => r.push({ type: 'facture', label: f.reference, sub: f.clientName, path: '/invoicing' }));
-
-    return r.slice(0, 12);
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
   }, [query]);
+
+  // Close on Escape
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const { data: searchResults, isLoading } = useSearch(debouncedQuery);
+
+  // Transform API results into flat list
+  const results: SearchResult[] = [];
+  if (searchResults) {
+    searchResults.clients.forEach(c =>
+      results.push({ type: 'client', label: c.name, sub: c.city || c.email, path: '/clients' }),
+    );
+    searchResults.quotes.forEach(q =>
+      results.push({ type: 'devis', label: q.reference, sub: q.subject, path: '/quotes' }),
+    );
+    searchResults.jobs.forEach(j =>
+      results.push({ type: 'chantier', label: j.reference, sub: j.title, path: '/jobs' }),
+    );
+    searchResults.invoices.forEach(i =>
+      results.push({ type: 'facture', label: i.reference, sub: `${i.amount.toLocaleString('fr-FR')} EUR`, path: '/invoicing' }),
+    );
+  }
+
+  const hasResults = results.length > 0;
+  const showDropdown = open && debouncedQuery.length >= 2;
 
   const typeLabels: Record<string, string> = {
     client: 'Client',
@@ -51,31 +70,42 @@ export function GlobalSearch() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          placeholder="Rechercher clients, devis, chantiers…"
+          placeholder="Rechercher clients, devis, chantiers..."
           className="pl-9 pr-8 h-9 w-64 lg:w-80 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-ring"
         />
         {query && (
-          <button onClick={() => { setQuery(''); setOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2">
+          <button onClick={() => { setQuery(''); setDebouncedQuery(''); setOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2">
             <X className="h-4 w-4 text-muted-foreground" />
           </button>
         )}
       </div>
-      {open && results.length > 0 && (
+      {showDropdown && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute top-full left-0 mt-1 w-full min-w-[360px] bg-card border rounded-lg shadow-lg z-50 max-h-80 overflow-auto animate-fade-in">
-            {results.map((r, i) => (
+            {isLoading && (
+              <div className="flex items-center justify-center py-6 gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Recherche...
+              </div>
+            )}
+            {!isLoading && !hasResults && (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Aucun resultat
+              </div>
+            )}
+            {!isLoading && hasResults && results.map((r, i) => (
               <button
                 key={i}
                 className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted/50 transition-colors"
-                onClick={() => { navigate(r.path); setOpen(false); setQuery(''); }}
+                onClick={() => { navigate(r.path); setOpen(false); setQuery(''); setDebouncedQuery(''); }}
               >
                 <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${typeColors[r.type]}`}>
                   {typeLabels[r.type]}

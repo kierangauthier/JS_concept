@@ -2,17 +2,19 @@ import { Link, useLocation } from 'react-router-dom';
 import { useApp, getNavForRole } from '@/contexts/AppContext';
 import {
   LayoutDashboard, Users, FileText, HardHat, CalendarDays, MapPin,
-  ShoppingCart, Wrench, Receipt, Settings,
+  ShoppingCart, Wrench, Receipt, Settings, UserCog, Package, ClipboardCheck, CalendarOff, BarChart3,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Users, FileText, HardHat, CalendarDays, MapPin,
-  ShoppingCart, Wrench, Receipt, Settings,
+  ShoppingCart, Wrench, Receipt, Settings, UserCog, Package, ClipboardCheck, CalendarOff, BarChart3,
 };
 
 export function MobileNav() {
   const { currentUser } = useApp();
   const location = useLocation();
+
+  if (!currentUser) return null;
 
   // Techniciens use the TerrainLayout with its own bottom nav
   if (currentUser.role === 'technicien') return null;

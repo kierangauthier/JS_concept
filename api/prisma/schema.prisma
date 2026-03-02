@@ -1,0 +1,998 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ─────────────────────────────────────────────
+
+enum CompanyCode {
+  ASP
+  JS
+}
+
+enum UserRole {
+  admin
+  conducteur
+  technicien
+  comptable
+}
+
+enum ClientType {
+  public
+  private
+}
+
+enum QuoteStatus {
+  draft
+  sent
+  accepted
+  refused
+  expired
+}
+
+enum JobStatus {
+  planned
+  in_progress
+  paused
+  completed
+  invoiced
+}
+
+enum PurchaseStatus {
+  draft
+  ordered
+  received
+  partial
+}
+
+enum InvoiceStatus {
+  draft
+  sent
+  paid
+  overdue
+  cancelled
+}
+
+enum WorkshopStatus {
+  bat_pending
+  bat_approved
+  fabrication
+  ready
+  pose_planned
+  pose_done
+}
+
+enum WorkshopPriority {
+  low
+  medium
+  high
+}
+
+enum InvoiceSituationStatus {
+  draft
+  validated
+  sent
+  paid
+}
+
+enum TimeEntryStatus {
+  draft
+  submitted
+  approved
+  rejected
+}
+
+enum TeamPlanningStatus {
+  draft
+  locked
+}
+
+// TimeSlot enum removed — replaced by startHour/endHour Int on TeamPlanningSlot
+
+// ─── MODELS ────────────────────────────────────────────
+
+model Company {
+  id   String      @id
+  code CompanyCode @unique
+  name String
+
+  users              User[]
+  clients            Client[]
+  quotes             Quote[]
+  jobs               Job[]
+  suppliers          Supplier[]
+  purchases          PurchaseOrder[]
+  invoices           Invoice[]
+  timeEntries        TimeEntry[]
+  workshopItems      WorkshopItem[]
+  planningSlots      PlanningSlot[]
+  teams              Team[]
+  planningWeeks      TeamPlanningWeek[]
+  hrDocuments        HrDocument[]
+  activityLogs       ActivityLog[]
+  catalogCategories  CatalogCategory[]
+  catalogProducts    CatalogProduct[]
+  quoteAmendments    QuoteAmendment[]
+  signatures         Signature[]
+  absenceTypes       AbsenceType[]
+  absences           Absence[]
+  quoteTemplates     QuoteTemplate[]
+  reminderRules          ReminderRule[]
+  reminderLogs           ReminderLog[]
+  accountingSettings     AccountingSettings?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("companies")
+}
+
+// ─── CATALOG ──────────────────────────────────────────
+
+model CatalogCategory {
+  id        String @id @default(cuid())
+  name      String
+  sortOrder Int    @default(0)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  products CatalogProduct[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("catalog_categories")
+}
+
+model CatalogProduct {
+  id          String  @id @default(cuid())
+  reference   String
+  designation String
+  unit        String
+  salePrice   Decimal @db.Decimal(10, 2)
+  costPrice   Decimal @db.Decimal(10, 2) @default(0)
+  lineType    String  @default("service") // service | workshop | purchase
+  isActive    Boolean @default(true)
+
+  categoryId String?
+  category   CatalogCategory? @relation(fields: [categoryId], references: [id])
+  companyId  String
+  company    Company          @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([companyId, reference])
+  @@index([companyId, categoryId])
+  @@map("catalog_products")
+}
+
+model User {
+  id           String   @id
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  avatar       String?
+  isActive     Boolean  @default(true)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  refreshTokens   RefreshToken[]
+  jobAssignments  JobAssignment[]
+  timeEntries     TimeEntry[]
+  planningSlots   PlanningSlot[]
+  teamMemberships TeamMember[]
+  lockedWeeks     TeamPlanningWeek[] @relation("lockedWeeks")
+  hrDocuments     HrDocument[]
+  activityLogs    ActivityLog[]
+  auditLogs       AuditLog[]
+  absences        Absence[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model Client {
+  id          String     @id
+  name        String
+  contact     String
+  email       String
+  phone       String
+  address     String
+  city        String
+  type        ClientType
+  externalRef String?
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  quotes   Quote[]
+  sites    Site[]
+  invoices Invoice[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([companyId, externalRef])
+  @@index([companyId])
+  @@map("clients")
+}
+
+model Site {
+  id      String  @id @default(cuid())
+  name    String
+  address String
+  city    String
+  lat     Float?
+  lng     Float?
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  jobs Job[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@map("sites")
+}
+
+model Quote {
+  id         String      @id
+  reference  String      @unique
+  subject    String
+  amount     Decimal     @db.Decimal(12, 2)
+  status     QuoteStatus @default(draft)
+  validUntil DateTime
+
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  lines       QuoteLine[]
+  amendments  QuoteAmendment[]
+  jobs        Job[]
+  attachments Attachment[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([status])
+  @@map("quotes")
+}
+
+model QuoteLine {
+  id          String  @id @default(cuid())
+  designation String
+  unit        String
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  costPrice   Decimal @db.Decimal(10, 2) @default(0)
+  sortOrder   Int     @default(0)
+
+  quoteId String
+  quote   Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+  @@map("quote_lines")
+}
+
+model Job {
+  id          String    @id
+  reference   String    @unique
+  title       String
+  address     String
+  status      JobStatus @default(planned)
+  startDate   DateTime
+  endDate     DateTime?
+  progress    Int       @default(0)
+  externalRef String?
+
+  quoteId   String?
+  quote     Quote?  @relation(fields: [quoteId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+  clientId  String?
+  siteId    String?
+  site      Site?   @relation(fields: [siteId], references: [id])
+
+  assignments       JobAssignment[]
+  timeEntries       TimeEntry[]
+  planningSlots     PlanningSlot[]
+  teamPlanningSlots TeamPlanningSlot[]
+  purchases         PurchaseOrder[]
+  workshopItems WorkshopItem[]
+  invoices      Invoice[]
+  attachments   Attachment[]
+  signatures    Signature[]
+
+  requiredCertifications String[] @default([])
+  hourlyRate             Decimal? @db.Decimal(8, 2)
+  estimatedHours         Decimal? @db.Decimal(6, 2)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([companyId, externalRef])
+  @@index([companyId])
+  @@index([status])
+  @@index([quoteId])
+  @@map("jobs")
+}
+
+model JobAssignment {
+  id     String @id @default(cuid())
+  jobId  String
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  assignedAt DateTime @default(now())
+
+  @@unique([jobId, userId])
+  @@map("job_assignments")
+}
+
+model TimeEntry {
+  id          String          @id
+  date        DateTime        @db.Date
+  hours       Decimal         @db.Decimal(4, 2)
+  description String
+  status      TimeEntryStatus @default(draft)
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  jobId     String
+  job       Job     @relation(fields: [jobId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([jobId])
+  @@index([companyId])
+  @@index([date])
+  @@map("time_entries")
+}
+
+model Attachment {
+  id         String @id @default(cuid())
+  name       String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+
+  // Polymorphic links
+  quoteId    String?
+  quote      Quote?         @relation(fields: [quoteId], references: [id])
+  jobId      String?
+  job        Job?           @relation(fields: [jobId], references: [id])
+  purchaseId String?
+  purchase   PurchaseOrder? @relation(fields: [purchaseId], references: [id])
+  invoiceId  String?
+  invoice    Invoice?       @relation(fields: [invoiceId], references: [id])
+
+  uploadedBy String
+  createdAt  DateTime @default(now())
+
+  @@index([quoteId])
+  @@index([jobId])
+  @@index([purchaseId])
+  @@index([invoiceId])
+  @@map("attachments")
+}
+
+model Supplier {
+  id          String @id
+  name        String
+  contact     String
+  email       String
+  phone       String
+  category    String
+  externalRef String?
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  purchases PurchaseOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, externalRef])
+  @@index([companyId])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id         String         @id
+  reference  String         @unique
+  amount     Decimal        @db.Decimal(12, 2)
+  status     PurchaseStatus @default(draft)
+  orderedAt  DateTime
+  receivedAt DateTime?
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  jobId      String?
+  job        Job?     @relation(fields: [jobId], references: [id])
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+
+  lines       PurchaseLine[]
+  attachments Attachment[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([companyId])
+  @@index([supplierId])
+  @@index([jobId])
+  @@map("purchase_orders")
+}
+
+model PurchaseLine {
+  id          String  @id @default(cuid())
+  designation String
+  unit        String
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  sortOrder   Int     @default(0)
+
+  purchaseId String
+  purchase   PurchaseOrder @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+  @@map("purchase_lines")
+}
+
+model WorkshopItem {
+  id          String           @id @default(cuid())
+  reference   String           @unique
+  title       String
+  description String           @default("")
+  status      WorkshopStatus   @default(bat_pending)
+  priority    WorkshopPriority @default(medium)
+  dueDate     DateTime?
+  assignedTo  String?
+
+  jobId     String
+  job       Job     @relation(fields: [jobId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([companyId])
+  @@index([jobId])
+  @@map("workshop_items")
+}
+
+model Invoice {
+  id          String        @id
+  reference   String        @unique
+  amount      Decimal       @db.Decimal(12, 2)
+  status      InvoiceStatus @default(draft)
+  issuedAt    DateTime
+  dueDate     DateTime
+  paidAt      DateTime?
+  isImported  Boolean       @default(false)
+  source      String?       // "legacy" | "manual" | null
+  externalRef String?
+  vatRate     Decimal?      @db.Decimal(5, 2)
+
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  jobId     String?
+  job       Job?     @relation(fields: [jobId], references: [id])
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+
+  situations   InvoiceSituation[]
+  attachments  Attachment[]
+  reminderLogs ReminderLog[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([companyId, externalRef])
+  @@index([companyId])
+  @@index([clientId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model InvoiceSituation {
+  id               String                 @id @default(cuid())
+  number           Int
+  label            String
+  percentage       Decimal                @db.Decimal(5, 2)
+  amount           Decimal                @db.Decimal(12, 2)
+  cumulativeAmount Decimal                @db.Decimal(12, 2) @default(0)
+  description      String?
+  status           InvoiceSituationStatus @default(draft)
+  date             DateTime               @default(now())
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_situations")
+}
+
+model ActivityLog {
+  id         String  @id @default(cuid())
+  entityId   String
+  entityType String
+  action     String
+  detail     String?
+
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([entityId, entityType])
+  @@index([companyId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model PlanningSlot {
+  id     String   @id @default(cuid())
+  date   DateTime @db.Date
+  note   String?
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  jobId     String
+  job       Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([companyId])
+  @@index([userId])
+  @@index([jobId])
+  @@index([date])
+  @@map("planning_slots")
+}
+
+// ─── TEAMS & TEAM PLANNING ────────────────────────────────────────────────
+
+model Team {
+  id       String  @id @default(cuid())
+  name     String
+  isActive Boolean @default(true)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  members       TeamMember[]
+  planningSlots TeamPlanningSlot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id         String    @id @default(cuid())
+  roleInTeam String?
+  activeFrom DateTime  @default(now())
+  activeTo   DateTime?
+
+  teamId String
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  @@index([teamId, userId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model TeamPlanningWeek {
+  id        String             @id @default(cuid())
+  weekStart DateTime           @db.Date
+  status    TeamPlanningStatus @default(draft)
+  version   Int                @default(1)
+  lockedAt  DateTime?
+
+  companyId      String
+  company        Company @relation(fields: [companyId], references: [id])
+  lockedByUserId String?
+  lockedByUser   User?   @relation("lockedWeeks", fields: [lockedByUserId], references: [id])
+
+  slots        TeamPlanningSlot[]
+  dispatchLogs PlanningDispatchLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, weekStart])
+  @@map("team_planning_weeks")
+}
+
+model TeamPlanningSlot {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  startHour Int      // 7-18
+  endHour   Int      // 8-18
+  notes     String?
+
+  weekId String
+  week   TeamPlanningWeek @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  teamId String
+  team   Team             @relation(fields: [teamId], references: [id])
+  jobId  String
+  job    Job              @relation(fields: [jobId], references: [id])
+
+  @@unique([teamId, weekId, date, startHour])
+  @@index([weekId])
+  @@index([jobId])
+  @@map("team_planning_slots")
+}
+
+model PlanningDispatchLog {
+  id           String   @id @default(cuid())
+  sentAt       DateTime @default(now())
+  sentByUserId String
+  channel      String   @default("email")
+  recipients   Json
+  status       String
+  error        String?
+  htmlContent  String?  @db.Text
+
+  weekId String
+  week   TeamPlanningWeek @relation(fields: [weekId], references: [id], onDelete: Cascade)
+
+  @@index([weekId])
+  @@map("planning_dispatch_logs")
+}
+
+// ─── HR DOCUMENTS ─────────────────────────────────────────────────────────
+
+model HrDocument {
+  id               String    @id @default(cuid())
+  type             String
+  label            String
+  storageKey       String
+  mimeType         String
+  sizeBytes        Int
+  purpose          String
+  expiresAt        DateTime?
+  retentionUntil   DateTime?
+  uploadedByUserId String
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([companyId])
+  @@map("hr_documents")
+}
+
+// ─── EMAIL LOGS ──────────────────────────────────────────────────────────
+
+model EmailLog {
+  id             String  @id @default(cuid())
+  entityType     String
+  entityId       String
+  recipientEmail String
+  subject        String
+  status         String  @default("sent")
+  error          String?
+
+  sentByUserId String?
+  companyId    String
+
+  sentAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([companyId])
+  @@map("email_logs")
+}
+
+model AuditLog {
+  id        String  @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id])
+  companyId String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  // IMMUTABLE — no updatedAt
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([companyId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─── SIGNATURES ──────────────────────────────────────────
+
+model Signature {
+  id               String   @id @default(cuid())
+  jobId            String
+  job              Job      @relation(fields: [jobId], references: [id])
+  interventionDate DateTime @db.Date
+  signatoryName    String
+  storageKey       String
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id])
+  createdAt        DateTime @default(now())
+
+  @@index([jobId])
+  @@index([companyId])
+  @@map("signatures")
+}
+
+// ─── AVENANTS ────────────────────────────────────────────
+
+model QuoteAmendment {
+  id        String @id @default(cuid())
+  reference String @unique
+  subject   String
+  amount    Decimal @db.Decimal(12, 2) @default(0)
+  status    String  @default("draft") // draft | sent | accepted | refused
+
+  quoteId   String
+  quote     Quote   @relation(fields: [quoteId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  lines QuoteAmendmentLine[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([quoteId])
+  @@index([companyId])
+  @@map("quote_amendments")
+}
+
+model QuoteAmendmentLine {
+  id          String  @id @default(cuid())
+  designation String
+  unit        String  @default("u")
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  costPrice   Decimal @db.Decimal(10, 2) @default(0)
+  sortOrder   Int     @default(0)
+
+  amendmentId String
+  amendment   QuoteAmendment @relation(fields: [amendmentId], references: [id], onDelete: Cascade)
+
+  @@index([amendmentId])
+  @@map("quote_amendment_lines")
+}
+
+// ─── ABSENCES ────────────────────────────────────────────
+
+model AbsenceType {
+  id        String  @id @default(cuid())
+  label     String
+  isPaid    Boolean @default(true)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+  absences  Absence[]
+
+  @@index([companyId])
+  @@map("absence_types")
+}
+
+model Absence {
+  id        String @id @default(cuid())
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  status    String   @default("pending") // pending | approved | rejected
+  reason    String?
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  typeId    String
+  type      AbsenceType @relation(fields: [typeId], references: [id])
+  approvedByUserId String?
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, startDate])
+  @@index([companyId, status])
+  @@map("absences")
+}
+
+// ─── QUOTE TEMPLATES ──────────────────────────────────────
+
+model QuoteTemplate {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  usageCount  Int     @default(0)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  lines QuoteTemplateLine[]
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@map("quote_templates")
+}
+
+model QuoteTemplateLine {
+  id          String  @id @default(cuid())
+  designation String
+  unit        String
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  costPrice   Decimal @db.Decimal(10, 2) @default(0)
+  sortOrder   Int     @default(0)
+
+  catalogProductId String?
+
+  templateId String
+  template   QuoteTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("quote_template_lines")
+}
+
+// ─── REMINDERS ────────────────────────────────────────────
+
+model ReminderRule {
+  id          String  @id @default(cuid())
+  level       Int     // 1, 2, 3
+  delayDays   Int     // days after dueDate: 7, 15, 30
+  subject     String
+  bodyTemplate String @db.Text
+  isActive    Boolean @default(true)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  logs ReminderLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, level])
+  @@map("reminder_rules")
+}
+
+model ReminderLog {
+  id             String   @id @default(cuid())
+  sentAt         DateTime @default(now())
+  recipientEmail String
+  status         String   // sent | failed | simulated
+  error          String?
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  ruleId    String
+  rule      ReminderRule @relation(fields: [ruleId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([invoiceId])
+  @@index([companyId])
+  @@map("reminder_logs")
+}
+
+// ─── ACCOUNTING SETTINGS ─────────────────────────────────────────────────
+
+model AccountingSettings {
+  id                String  @id @default(cuid())
+  companyId         String  @unique
+  company           Company @relation(fields: [companyId], references: [id])
+
+  // Comptes journal ventes
+  accountClient     String @default("411000")
+  accountRevenue    String @default("706000")
+  accountVatOutput  String @default("445710")
+
+  // Comptes journal achats
+  accountSupplier   String @default("401000")
+  accountPurchases  String @default("607000")
+  accountVatInput   String @default("445660")
+
+  // Comptes journal banque (V2)
+  accountBank       String @default("512000")
+  accountCashIn     String @default("512100")
+  accountCashOut    String @default("512200")
+
+  // TVA multi-taux (JSON array)
+  vatRates          Json   @default("[{\"label\":\"Normal\",\"rate\":20.00,\"accountOutput\":\"445710\",\"accountInput\":\"445660\"},{\"label\":\"Reduit\",\"rate\":10.00,\"accountOutput\":\"445711\",\"accountInput\":\"445661\"},{\"label\":\"Exonere\",\"rate\":0,\"accountOutput\":null,\"accountInput\":null}]")
+
+  // Parametres previsionnel tresorerie
+  billingDelayInProgress Int @default(14)
+  billingDelayCompleted  Int @default(7)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("accounting_settings")
+}
+
+// ─── IDEMPOTENCY KEYS ────────────────────────────────────────────────────
+
+model IdempotencyKey {
+  id           String   @id @default(cuid())
+  key          String
+  userId       String
+  companyId    String
+  payloadHash  String
+  statusCode   Int
+  responseBody Json?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@unique([key, userId, companyId])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

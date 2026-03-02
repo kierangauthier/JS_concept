@@ -1,7 +1,5 @@
 import { useState, useMemo } from 'react';
 import { useFilterByCompany } from '@/contexts/AppContext';
-import { mockQuotes } from '@/services/mockData';
-import { mockQuoteLines, mockActivities, mockAttachments } from '@/services/mockDataExtended';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge, CompanyBadge } from '@/components/shared/StatusBadge';
 import { ActivityFeed } from '@/components/shared/ActivityFeed';
@@ -10,9 +8,42 @@ import { Quote, QuoteStatus } from '@/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Copy, ArrowRight, GripVertical, List, Columns3 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Copy, ArrowRight, GripVertical, List, Columns3, Plus, Trash2, Pencil, FileText as FileTextIcon, Download, Mail, Loader2, BookTemplate, Save } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { toast } from 'sonner';
 import { DataTable, Column } from '@/components/shared/DataTable';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CompanySelect } from '@/components/shared/CompanySelect';
+import { useApp } from '@/contexts/AppContext';
+import {
+  useQuotes, useQuoteDetail, useDuplicateQuote, useConvertToJob, useConvertFull,
+  useClients, useCreateQuote, useUpdateQuote, useUpdateQuoteStatus,
+  useActivityLogs, useAttachments, useSendEmail,
+  useAmendments, useCreateAmendment, useUpdateAmendmentStatus, useDeleteAmendment,
+  useQuoteTemplates, useCreateQuoteTemplate, useCreateQuoteFromTemplate, useDeleteQuoteTemplate,
+} from '@/services/api/hooks';
+import { CreateQuotePayload } from '@/services/api/quotes.api';
+
+interface QuoteLineForm {
+  designation: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  costPrice: number;
+}
+
+const defaultLine = (): QuoteLineForm => ({
+  designation: '',
+  unit: 'u',
+  quantity: 1,
+  unitPrice: 0,
+  costPrice: 0,
+});
 
 const kanbanColumns: { status: QuoteStatus; label: string; color: string }[] = [
   { status: 'draft', label: 'Nouveau / Brouillon', color: 'border-t-muted-foreground' },
@@ -22,9 +53,139 @@ const kanbanColumns: { status: QuoteStatus; label: string; color: string }[] = [
 ];
 
 export default function Quotes() {
-  const quotes = useFilterByCompany(mockQuotes);
+  const { data: apiQuotes, isLoading, isError } = useQuotes();
+  const allQuotes: Quote[] = apiQuotes ?? [];
+  const quotes = useFilterByCompany(allQuotes);
+
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+
+  const { selectedCompany } = useApp();
+
+  // Form state
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+  const [formClientId, setFormClientId] = useState('');
+  const [formSubject, setFormSubject] = useState('');
+  const [formValidUntil, setFormValidUntil] = useState('');
+  const [formLines, setFormLines] = useState<QuoteLineForm[]>([defaultLine()]);
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+
+  // API hooks
+  const { data: quoteDetail } = useQuoteDetail(selectedQuote?.id ?? null);
+  const { data: apiClients } = useClients();
+  const clients = apiClients ?? [];
+
+  const sendEmailMutation = useSendEmail();
+
+  // Email dialog state
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+
+  function openEmailDialog() {
+    if (!selectedQuote) return;
+    const client = clients.find(c => c.id === selectedQuote.clientId);
+    setEmailTo(client?.email ?? '');
+    setEmailSubject(`Devis ${selectedQuote.reference}`);
+    setEmailMessage(`Veuillez trouver ci-joint le devis ${selectedQuote.reference}.\n\nCordialement,`);
+    setEmailOpen(true);
+  }
+
+  async function handleSendEmail(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedQuote || !emailTo.trim()) { toast.error('Saisissez un destinataire'); return; }
+    await sendEmailMutation.mutateAsync({
+      entityType: 'quote',
+      entityId: selectedQuote.id,
+      to: emailTo.trim(),
+      subject: emailSubject || undefined,
+      message: emailMessage || undefined,
+    });
+    setEmailOpen(false);
+  }
+
+  const duplicateMutation = useDuplicateQuote();
+  const convertMutation = useConvertToJob();
+  const convertFullMutation = useConvertFull();
+  const createMutation = useCreateQuote();
+
+  // Convert full dialog
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [convertWithWorkshop, setConvertWithWorkshop] = useState(false);
+  const [convertWithPurchases, setConvertWithPurchases] = useState(false);
+  const updateMutation = useUpdateQuote();
+  const statusMutation = useUpdateQuoteStatus();
+
+  // Amendments
+  const { data: amendments = [] } = useAmendments(selectedQuote?.id ?? null);
+  const createAmendmentMutation = useCreateAmendment();
+  const amendmentStatusMutation = useUpdateAmendmentStatus();
+  const deleteAmendmentMutation = useDeleteAmendment();
+  const [avFormOpen, setAvFormOpen] = useState(false);
+  const [avSubject, setAvSubject] = useState('');
+  const [avLines, setAvLines] = useState<QuoteLineForm[]>([defaultLine()]);
+
+  const avTotalHT = avLines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
+  const amendmentsAcceptedTotal = amendments.filter(a => a.status === 'accepted').reduce((s, a) => s + a.amount, 0);
+
+  // Templates
+  const { data: templates = [] } = useQuoteTemplates();
+  const createTemplateMutation = useCreateQuoteTemplate();
+  const createFromTemplateMutation = useCreateQuoteFromTemplate();
+  const deleteTemplateMutation = useDeleteQuoteTemplate();
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDesc, setTemplateDesc] = useState('');
+  const [fromTemplateOpen, setFromTemplateOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [tplClientId, setTplClientId] = useState('');
+  const [tplSubject, setTplSubject] = useState('');
+  const [tplValidUntil, setTplValidUntil] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  });
+
+  async function handleSaveAsTemplate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedQuote || !templateName.trim()) { toast.error('Saisissez un nom'); return; }
+    await createTemplateMutation.mutateAsync({
+      name: templateName.trim(),
+      description: templateDesc.trim() || undefined,
+      quoteId: selectedQuote.id,
+    });
+    setSaveTemplateOpen(false);
+  }
+
+  async function handleCreateFromTemplate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedTemplateId) { toast.error('Sélectionnez un modèle'); return; }
+    if (!tplClientId) { toast.error('Sélectionnez un client'); return; }
+    if (!tplSubject.trim()) { toast.error('Saisissez un objet'); return; }
+    await createFromTemplateMutation.mutateAsync({
+      templateId: selectedTemplateId,
+      data: { clientId: tplClientId, subject: tplSubject.trim(), validUntil: new Date(tplValidUntil).toISOString() },
+    });
+    setFromTemplateOpen(false);
+  }
+
+  function openAvForm() {
+    setAvSubject('');
+    setAvLines([defaultLine()]);
+    setAvFormOpen(true);
+  }
+
+  async function handleAvSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedQuote || !avSubject.trim()) { toast.error('Saisissez un objet'); return; }
+    const validLines = avLines.filter(l => l.designation.trim() && l.quantity > 0);
+    await createAmendmentMutation.mutateAsync({
+      quoteId: selectedQuote.id,
+      data: { subject: avSubject.trim(), lines: validLines.length > 0 ? validLines : undefined },
+    });
+    setAvFormOpen(false);
+  }
 
   const quotesByStatus = useMemo(() => {
     const map: Record<QuoteStatus, Quote[]> = { draft: [], sent: [], accepted: [], refused: [], expired: [] };
@@ -32,13 +193,84 @@ export default function Quotes() {
     return map;
   }, [quotes]);
 
-  const selectedLines = selectedQuote ? mockQuoteLines.filter(l => l.quoteId === selectedQuote.id) : [];
-  const selectedActivities = selectedQuote ? mockActivities.filter(a => a.entityId === selectedQuote.id && a.entityType === 'quote') : [];
-  const selectedFiles = selectedQuote ? mockAttachments.filter(a => a.entityId === selectedQuote.id) : [];
+  const selectedLines = quoteDetail?.lines ?? [];
+  const { data: selectedActivities = [] } = useActivityLogs('quote', selectedQuote?.id ?? null);
+  const { data: selectedFiles = [] } = useAttachments('quote', selectedQuote?.id ?? null);
 
   const totalHT = selectedLines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-  const totalCost = selectedLines.reduce((s, l) => s + l.quantity * l.costPrice, 0);
+  const totalCost = selectedLines.reduce((s, l) => s + l.quantity * (l.costPrice ?? 0), 0);
   const margin = totalHT > 0 ? ((totalHT - totalCost) / totalHT * 100) : 0;
+
+  // Form totals (live calculation)
+  const formTotalHT = formLines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
+  const formTotalCost = formLines.reduce((s, l) => s + l.quantity * l.costPrice, 0);
+  const formMargin = formTotalHT > 0 ? ((formTotalHT - formTotalCost) / formTotalHT * 100) : 0;
+
+  function openCreateForm() {
+    setEditingQuote(null);
+    setFormClientId('');
+    setFormSubject('');
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    setFormValidUntil(d.toISOString().slice(0, 10));
+    setFormLines([defaultLine()]);
+    setFormOpen(true);
+  }
+
+  function openEditForm(q: Quote) {
+    setEditingQuote(q);
+    setFormClientId(q.clientId);
+    setFormSubject(q.subject);
+    setFormValidUntil(q.validUntil ? q.validUntil.slice(0, 10) : '');
+    const lines = quoteDetail?.lines ?? [];
+    setFormLines(
+      lines.length > 0
+        ? lines.map(l => ({ designation: l.designation, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice, costPrice: l.costPrice ?? 0 }))
+        : [defaultLine()]
+    );
+    setFormOpen(true);
+  }
+
+  function updateLine(idx: number, field: keyof QuoteLineForm, value: string | number) {
+    setFormLines(prev => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l));
+  }
+
+  function addLine() {
+    setFormLines(prev => [...prev, defaultLine()]);
+  }
+
+  function removeLine(idx: number) {
+    setFormLines(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formClientId) { toast.error('Sélectionnez un client'); return; }
+    if (!formSubject.trim()) { toast.error('Saisissez un objet'); return; }
+    if (!formValidUntil) { toast.error('Saisissez une date de validité'); return; }
+    const validLines = formLines.filter(l => l.designation.trim() && l.quantity > 0 && l.unitPrice >= 0);
+    if (validLines.length === 0) { toast.error('Ajoutez au moins une ligne valide'); return; }
+
+    if (selectedCompany === 'GROUP' && !editingQuote && !formCompany) {
+      toast.error('Sélectionnez une entité'); return;
+    }
+
+    const payload: CreateQuotePayload = {
+      clientId: formClientId,
+      subject: formSubject.trim(),
+      validUntil: new Date(formValidUntil).toISOString(),
+      lines: validLines,
+    };
+
+    if (editingQuote) {
+      await updateMutation.mutateAsync({ id: editingQuote.id, data: payload });
+    } else {
+      const scope = selectedCompany === 'GROUP' ? formCompany : undefined;
+      await createMutation.mutateAsync({ data: payload, companyScope: scope });
+    }
+    setFormOpen(false);
+    setEditingQuote(null);
+  }
 
   const listColumns: Column<Quote>[] = [
     { key: 'reference', header: 'Réf.', sortable: true, accessor: (q) => q.reference, render: (q) => (
@@ -54,13 +286,34 @@ export default function Quotes() {
     { key: 'date', header: 'Date', sortable: true, accessor: (q) => q.createdAt, render: (q) => <span className="text-xs text-muted-foreground">{new Date(q.createdAt).toLocaleDateString('fr-FR')}</span> },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Devis" subtitle="Chargement…" action={{ label: 'Nouveau devis', onClick: () => {} }} />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-lg" />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader
         title="Devis"
         subtitle={`${quotes.length} devis`}
-        action={{ label: 'Nouveau devis', onClick: () => toast.info('Formulaire nouveau devis') }}
+        action={{ label: 'Nouveau devis', onClick: openCreateForm }}
       >
+        <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => {
+          setSelectedTemplateId('');
+          setTplClientId('');
+          setTplSubject('');
+          const d = new Date(); d.setDate(d.getDate() + 30);
+          setTplValidUntil(d.toISOString().slice(0, 10));
+          setFromTemplateOpen(true);
+        }}>
+          <BookTemplate className="h-3 w-3" /> Depuis un modèle
+        </Button>
         <div className="flex items-center border rounded-md overflow-hidden">
           <button
             className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'kanban' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`}
@@ -77,7 +330,9 @@ export default function Quotes() {
         </div>
       </PageHeader>
 
-      {viewMode === 'kanban' ? (
+      {quotes.length === 0 ? (
+        <EmptyState icon={FileTextIcon} title="Aucun devis" description="Cr\u00e9ez votre premier devis pour commencer." />
+      ) : viewMode === 'kanban' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {kanbanColumns.map(col => (
             <div key={col.status} className={`bg-muted/30 rounded-lg border-t-2 ${col.color}`}>
@@ -138,13 +393,105 @@ export default function Quotes() {
               </SheetHeader>
 
               {/* Actions */}
-              <div className="flex gap-2 mb-4">
-                <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => toast.info('Devis dupliqué')}>
-                  <Copy className="h-3 w-3" /> Dupliquer
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1"
+                  onClick={() => openEditForm(selectedQuote)}
+                >
+                  <Pencil className="h-3 w-3" /> Modifier
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1"
+                  disabled={duplicateMutation.isPending}
+                  onClick={() => duplicateMutation.mutate(selectedQuote.id)}
+                >
+                  <Copy className="h-3 w-3" /> {duplicateMutation.isPending ? '…' : 'Dupliquer'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1"
+                  onClick={() => {
+                    setTemplateName(selectedQuote.subject);
+                    setTemplateDesc('');
+                    setSaveTemplateOpen(true);
+                  }}
+                >
+                  <Save className="h-3 w-3" /> Modèle
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1"
+                  onClick={async () => {
+                    try {
+                      const { quotesApi } = await import('@/services/api/quotes.api');
+                      await quotesApi.downloadPdf(selectedQuote.id);
+                    } catch (err: any) {
+                      toast.error(err.message ?? 'Erreur PDF');
+                    }
+                  }}
+                >
+                  <Download className="h-3 w-3" /> PDF
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1"
+                  onClick={openEmailDialog}
+                >
+                  <Mail className="h-3 w-3" /> Email
+                </Button>
+
+                {/* Status transition buttons */}
+                {selectedQuote.status === 'draft' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    disabled={statusMutation.isPending}
+                    onClick={() => statusMutation.mutate({ id: selectedQuote.id, status: 'sent' })}
+                  >
+                    {statusMutation.isPending ? '…' : 'Envoyer'}
+                  </Button>
+                )}
+                {selectedQuote.status === 'sent' && (
+                  <>
+                    <Button
+                      size="sm"
+                      className="text-xs bg-success hover:bg-success/90 text-success-foreground"
+                      disabled={statusMutation.isPending}
+                      onClick={() => statusMutation.mutate({ id: selectedQuote.id, status: 'accepted' })}
+                    >
+                      {statusMutation.isPending ? '…' : 'Accepté'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="text-xs"
+                      disabled={statusMutation.isPending}
+                      onClick={() => statusMutation.mutate({ id: selectedQuote.id, status: 'refused' })}
+                    >
+                      {statusMutation.isPending ? '…' : 'Refusé'}
+                    </Button>
+                  </>
+                )}
                 {selectedQuote.status === 'accepted' && (
-                  <Button size="sm" className="text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => toast.success('Chantier créé depuis ce devis')}>
-                    <ArrowRight className="h-3 w-3" /> Convertir en chantier
+                  <Button
+                    size="sm"
+                    className="text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                    disabled={convertMutation.isPending || convertFullMutation.isPending}
+                    onClick={() => {
+                      setConvertWithWorkshop(false);
+                      setConvertWithPurchases(false);
+                      setConvertDialogOpen(true);
+                    }}
+                  >
+                    <ArrowRight className="h-3 w-3" /> {convertMutation.isPending || convertFullMutation.isPending ? '…' : 'Convertir'}
                   </Button>
                 )}
               </div>
@@ -166,9 +513,14 @@ export default function Quotes() {
               </div>
 
               <Tabs defaultValue="lines" className="w-full">
-                <TabsList className="w-full grid grid-cols-4 h-9">
+                <TabsList className="w-full grid grid-cols-5 h-9">
                   <TabsTrigger value="lines" className="text-xs">Lignes</TabsTrigger>
-                  <TabsTrigger value="files" className="text-xs">Pièces jointes</TabsTrigger>
+                  {selectedQuote.status === 'accepted' && (
+                    <TabsTrigger value="amendments" className="text-xs">
+                      Avenants {amendments.length > 0 && `(${amendments.length})`}
+                    </TabsTrigger>
+                  )}
+                  <TabsTrigger value="files" className="text-xs">PJ</TabsTrigger>
                   <TabsTrigger value="activity" className="text-xs">Activité</TabsTrigger>
                   <TabsTrigger value="info" className="text-xs">Infos</TabsTrigger>
                 </TabsList>
@@ -210,6 +562,116 @@ export default function Quotes() {
                   )}
                 </TabsContent>
 
+                <TabsContent value="amendments" className="mt-3 space-y-3">
+                  {avFormOpen ? (
+                    <form onSubmit={handleAvSubmit} className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                      <div className="text-sm font-semibold">Nouvel avenant</div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="av-subject">Objet *</Label>
+                        <Input id="av-subject" value={avSubject} onChange={e => setAvSubject(e.target.value)} placeholder="Description de l'avenant" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Lignes</Label>
+                          <Button type="button" size="sm" variant="outline" className="text-xs gap-1 h-7" onClick={() => setAvLines(prev => [...prev, defaultLine()])}>
+                            <Plus className="h-3 w-3" /> Ajouter
+                          </Button>
+                        </div>
+                        <div className="border rounded-lg overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="bg-muted/50 text-muted-foreground">
+                                <th className="text-left px-2 py-1.5">Désignation</th>
+                                <th className="text-center px-2 py-1.5 w-12">U.</th>
+                                <th className="text-right px-2 py-1.5 w-14">Qté</th>
+                                <th className="text-right px-2 py-1.5 w-20">P.U. HT</th>
+                                <th className="w-8" />
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {avLines.map((line, idx) => (
+                                <tr key={idx}>
+                                  <td className="px-1 py-1"><Input className="h-7 text-xs" value={line.designation} onChange={e => setAvLines(prev => prev.map((l, i) => i === idx ? { ...l, designation: e.target.value } : l))} placeholder="Désignation" /></td>
+                                  <td className="px-1 py-1"><Input className="h-7 text-xs text-center" value={line.unit} onChange={e => setAvLines(prev => prev.map((l, i) => i === idx ? { ...l, unit: e.target.value } : l))} /></td>
+                                  <td className="px-1 py-1"><Input className="h-7 text-xs text-right" type="number" min={0} step="any" value={line.quantity} onChange={e => setAvLines(prev => prev.map((l, i) => i === idx ? { ...l, quantity: parseFloat(e.target.value) || 0 } : l))} /></td>
+                                  <td className="px-1 py-1"><Input className="h-7 text-xs text-right" type="number" min={0} step="any" value={line.unitPrice} onChange={e => setAvLines(prev => prev.map((l, i) => i === idx ? { ...l, unitPrice: parseFloat(e.target.value) || 0 } : l))} /></td>
+                                  <td className="px-1 py-1 text-center">
+                                    <button type="button" className="text-muted-foreground hover:text-destructive" onClick={() => setAvLines(prev => prev.filter((_, i) => i !== idx))} disabled={avLines.length === 1}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="text-right text-sm font-medium">Total : {avTotalHT.toLocaleString('fr-FR')} €</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="submit" size="sm" className="text-xs" disabled={createAmendmentMutation.isPending}>
+                          {createAmendmentMutation.isPending ? 'Création…' : 'Créer l\'avenant'}
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" className="text-xs" onClick={() => setAvFormOpen(false)}>Annuler</Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <Button size="sm" variant="outline" className="text-xs gap-1" onClick={openAvForm}>
+                      <Plus className="h-3 w-3" /> Nouvel avenant
+                    </Button>
+                  )}
+
+                  {amendments.length === 0 && !avFormOpen ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Aucun avenant pour ce devis</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {amendments.map(av => (
+                        <div key={av.id} className="border rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-mono text-xs font-medium">{av.reference}</span>
+                            <StatusBadge type="quote" status={av.status as QuoteStatus} />
+                          </div>
+                          <div className="text-sm mb-1">{av.subject}</div>
+                          <div className="text-sm font-bold mb-2">{av.amount.toLocaleString('fr-FR')} € HT</div>
+                          {av.lines.length > 0 && (
+                            <div className="text-xs text-muted-foreground mb-2">
+                              {av.lines.map(l => `${l.designation} (${l.quantity} ${l.unit})`).join(', ')}
+                            </div>
+                          )}
+                          <div className="flex gap-1.5">
+                            {av.status === 'draft' && (
+                              <>
+                                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => amendmentStatusMutation.mutate({ id: av.id, status: 'sent' })}>
+                                  Envoyer
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive" onClick={() => deleteAmendmentMutation.mutate(av.id)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
+                            {av.status === 'sent' && (
+                              <>
+                                <Button size="sm" className="text-xs h-7 bg-success hover:bg-success/90 text-success-foreground" onClick={() => amendmentStatusMutation.mutate({ id: av.id, status: 'accepted' })}>
+                                  Accepter
+                                </Button>
+                                <Button size="sm" variant="destructive" className="text-xs h-7" onClick={() => amendmentStatusMutation.mutate({ id: av.id, status: 'refused' })}>
+                                  Refuser
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      {amendmentsAcceptedTotal > 0 && (
+                        <div className="border-t pt-2 mt-2 flex justify-between text-sm">
+                          <span className="text-muted-foreground">Total devis + avenants acceptés</span>
+                          <span className="font-bold">{(totalHT + amendmentsAcceptedTotal).toLocaleString('fr-FR')} €</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
+
                 <TabsContent value="files" className="mt-3">
                   <FileUploader files={selectedFiles} />
                 </TabsContent>
@@ -243,6 +705,357 @@ export default function Quotes() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Create / Edit Form Drawer */}
+      <Sheet open={formOpen} onOpenChange={(open) => { if (!open) { setFormOpen(false); setEditingQuote(null); } }}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader className="pb-4">
+            <SheetTitle>{editingQuote ? `Modifier ${editingQuote.reference}` : 'Nouveau devis'}</SheetTitle>
+          </SheetHeader>
+
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            {!editingQuote && <CompanySelect value={formCompany} onChange={setFormCompany} />}
+            {/* Client */}
+            <div className="space-y-1.5">
+              <Label htmlFor="q-client">Client *</Label>
+              <Select value={formClientId} onValueChange={setFormClientId}>
+                <SelectTrigger id="q-client">
+                  <SelectValue placeholder="Sélectionnez un client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Objet */}
+            <div className="space-y-1.5">
+              <Label htmlFor="q-subject">Objet *</Label>
+              <Input
+                id="q-subject"
+                value={formSubject}
+                onChange={e => setFormSubject(e.target.value)}
+                placeholder="Description du devis"
+              />
+            </div>
+
+            {/* Date validité */}
+            <div className="space-y-1.5">
+              <Label htmlFor="q-valid">Date de validité *</Label>
+              <Input
+                id="q-valid"
+                type="date"
+                value={formValidUntil}
+                onChange={e => setFormValidUntil(e.target.value)}
+              />
+            </div>
+
+            {/* Lignes */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Lignes *</Label>
+                <Button type="button" size="sm" variant="outline" className="text-xs gap-1 h-7" onClick={addLine}>
+                  <Plus className="h-3 w-3" /> Ajouter
+                </Button>
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-muted/50 text-muted-foreground">
+                      <th className="text-left px-2 py-1.5">Désignation</th>
+                      <th className="text-center px-2 py-1.5 w-12">U.</th>
+                      <th className="text-right px-2 py-1.5 w-14">Qté</th>
+                      <th className="text-right px-2 py-1.5 w-20">P.U. HT</th>
+                      <th className="text-right px-2 py-1.5 w-20">Coût</th>
+                      <th className="w-8" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {formLines.map((line, idx) => (
+                      <tr key={idx}>
+                        <td className="px-1 py-1">
+                          <Input
+                            className="h-7 text-xs"
+                            value={line.designation}
+                            onChange={e => updateLine(idx, 'designation', e.target.value)}
+                            placeholder="Désignation"
+                          />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input
+                            className="h-7 text-xs text-center"
+                            value={line.unit}
+                            onChange={e => updateLine(idx, 'unit', e.target.value)}
+                          />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input
+                            className="h-7 text-xs text-right"
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={line.quantity}
+                            onChange={e => updateLine(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                          />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input
+                            className="h-7 text-xs text-right"
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={line.unitPrice}
+                            onChange={e => updateLine(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input
+                            className="h-7 text-xs text-right"
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={line.costPrice}
+                            onChange={e => updateLine(idx, 'costPrice', parseFloat(e.target.value) || 0)}
+                          />
+                        </td>
+                        <td className="px-1 py-1 text-center">
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                            onClick={() => removeLine(idx)}
+                            disabled={formLines.length === 1}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totaux live */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-muted/30 rounded p-2 text-center">
+                  <div className="text-[10px] text-muted-foreground uppercase">Total HT</div>
+                  <div className="text-sm font-bold">{formTotalHT.toLocaleString('fr-FR')} €</div>
+                </div>
+                <div className="bg-muted/30 rounded p-2 text-center">
+                  <div className="text-[10px] text-muted-foreground uppercase">Coût</div>
+                  <div className="text-sm font-bold">{formTotalCost.toLocaleString('fr-FR')} €</div>
+                </div>
+                <div className={`rounded p-2 text-center ${formMargin >= 25 ? 'bg-success/10' : formMargin >= 15 ? 'bg-warning/10' : 'bg-destructive/10'}`}>
+                  <div className="text-[10px] text-muted-foreground uppercase">Marge</div>
+                  <div className="text-sm font-bold">{formMargin.toFixed(1)}%</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={createMutation.isPending || updateMutation.isPending}
+              >
+                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editingQuote ? 'Mettre à jour' : 'Créer le devis'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setFormOpen(false); setEditingQuote(null); }}
+              >
+                Annuler
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Email Dialog */}
+      <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Envoyer le devis par email</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSendEmail} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email-to">Destinataire *</Label>
+              <Input id="email-to" type="email" value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="client@email.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email-subject">Objet</Label>
+              <Input id="email-subject" value={emailSubject} onChange={e => setEmailSubject(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email-message">Message</Label>
+              <Textarea id="email-message" value={emailMessage} onChange={e => setEmailMessage(e.target.value)} rows={4} />
+            </div>
+            <p className="text-xs text-muted-foreground">Le PDF du devis sera joint automatiquement.</p>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEmailOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={sendEmailMutation.isPending} className="gap-1">
+                {sendEmailMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />}
+                Envoyer
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save as Template Dialog */}
+      <Dialog open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sauvegarder comme modèle</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveAsTemplate} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="tpl-name">Nom du modèle *</Label>
+              <Input id="tpl-name" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Ex: Signalisation horizontale" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tpl-desc">Description</Label>
+              <Textarea id="tpl-desc" value={templateDesc} onChange={e => setTemplateDesc(e.target.value)} rows={2} placeholder="Description optionnelle" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setSaveTemplateOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={createTemplateMutation.isPending} className="gap-1">
+                {createTemplateMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Sauvegarder
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create from Template Dialog */}
+      <Dialog open={fromTemplateOpen} onOpenChange={setFromTemplateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Créer un devis depuis un modèle</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateFromTemplate} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Modèle *</Label>
+              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionnez un modèle" /></SelectTrigger>
+                <SelectContent>
+                  {templates.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} ({t._count.lines} lignes) — utilisé {t.usageCount}×
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedTemplateId && (
+              <div className="border rounded-md p-3 bg-muted/30 space-y-1 max-h-32 overflow-y-auto">
+                {templates.find(t => t.id === selectedTemplateId)?.lines.map((l, i) => (
+                  <div key={i} className="flex justify-between text-xs">
+                    <span className="truncate flex-1">{l.designation}</span>
+                    <span className="text-muted-foreground ml-2">{l.quantity} {l.unit} × {l.unitPrice}€</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label>Client *</Label>
+              <Select value={tplClientId} onValueChange={setTplClientId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionnez un client" /></SelectTrigger>
+                <SelectContent>
+                  {clients.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Objet *</Label>
+              <Input value={tplSubject} onChange={e => setTplSubject(e.target.value)} placeholder="Objet du devis" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Validité</Label>
+              <Input type="date" value={tplValidUntil} onChange={e => setTplValidUntil(e.target.value)} />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setFromTemplateOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={createFromTemplateMutation.isPending} className="gap-1">
+                {createFromTemplateMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                Créer le devis
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert Full Dialog */}
+      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Convertir le devis</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Le devis <strong>{selectedQuote?.reference}</strong> sera converti en chantier.
+            </p>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={convertWithWorkshop}
+                  onChange={e => setConvertWithWorkshop(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm">Créer les items atelier (fabrication)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={convertWithPurchases}
+                  onChange={e => setConvertWithPurchases(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm">Créer les commandes achats (fournitures)</span>
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>Annuler</Button>
+            <Button
+              disabled={convertFullMutation.isPending || convertMutation.isPending}
+              onClick={async () => {
+                if (!selectedQuote) return;
+                if (convertWithWorkshop || convertWithPurchases) {
+                  await convertFullMutation.mutateAsync({
+                    id: selectedQuote.id,
+                    options: { createWorkshop: convertWithWorkshop, createPurchases: convertWithPurchases },
+                  });
+                } else {
+                  await convertMutation.mutateAsync(selectedQuote.id);
+                }
+                setConvertDialogOpen(false);
+              }}
+              className="gap-1"
+            >
+              {convertFullMutation.isPending || convertMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <ArrowRight className="h-3 w-3" />
+              )}
+              Convertir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

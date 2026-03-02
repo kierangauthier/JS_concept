@@ -1,14 +1,21 @@
 import { useState, useMemo } from 'react';
-import { useFilterByCompany } from '@/contexts/AppContext';
-import { mockWorkshopItems, WorkshopItem, WorkshopStatus } from '@/services/mockDataExtended';
+import { useFilterByCompany, useApp } from '@/contexts/AppContext';
+import { WorkshopItem, WorkshopStatus } from '@/services/mockDataExtended';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { CompanyBadge } from '@/components/shared/StatusBadge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useWorkshopItems, useCreateWorkshopItem, useNextStep, useJobs, useActivityLogs } from '@/services/api/hooks';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Columns3, List, ArrowRight, CheckCircle2, Cog, Truck, Eye, Paintbrush } from 'lucide-react';
+import { Columns3, List, ArrowRight, CheckCircle2, Cog, Truck, Eye, Paintbrush, Wrench } from 'lucide-react';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { ActivityFeed } from '@/components/shared/ActivityFeed';
+import { CompanySelect } from '@/components/shared/CompanySelect';
 
 const workshopStages: { status: WorkshopStatus; label: string; icon: React.ElementType; color: string }[] = [
   { status: 'bat_pending', label: 'BAT en attente', icon: Eye, color: 'border-t-warning' },
@@ -35,9 +42,58 @@ const priorityBadge: Record<string, string> = {
 };
 
 export default function Workshop() {
-  const allItems = useFilterByCompany(mockWorkshopItems);
+  const { data: apiWorkshopItems, isLoading, isError } = useWorkshopItems();
+  const allItems = useFilterByCompany(apiWorkshopItems ?? []);
   const [selected, setSelected] = useState<WorkshopItem | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+
+  const { selectedCompany } = useApp();
+  const createMutation = useCreateWorkshopItem();
+  const nextStepMutation = useNextStep();
+
+  // Jobs for the create form
+  const { data: apiJobs } = useJobs();
+  const jobs = apiJobs ?? [];
+
+  // Form state
+  const [formOpen, setFormOpen] = useState(false);
+  const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formJobId, setFormJobId] = useState('');
+  const [formPriority, setFormPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [formDueDate, setFormDueDate] = useState('');
+  const [formAssignedTo, setFormAssignedTo] = useState('');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+
+  function openCreateForm() {
+    setFormTitle('');
+    setFormDescription('');
+    setFormJobId('');
+    setFormPriority('medium');
+    setFormDueDate('');
+    setFormAssignedTo('');
+    setFormOpen(true);
+  }
+
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formTitle.trim()) { toast.error('Saisissez un titre'); return; }
+    if (!formJobId) { toast.error('Sélectionnez un chantier'); return; }
+
+    const scope = selectedCompany === 'GROUP' ? formCompany : undefined;
+    await createMutation.mutateAsync({
+      data: {
+        title: formTitle.trim(),
+        description: formDescription.trim() || undefined,
+        jobId: formJobId,
+        priority: formPriority,
+        dueDate: formDueDate ? new Date(formDueDate).toISOString() : undefined,
+        assignedTo: formAssignedTo.trim() || undefined,
+      },
+      companyScope: scope,
+    });
+    setFormOpen(false);
+  }
 
   const byStatus = useMemo(() => {
     const map: Record<WorkshopStatus, WorkshopItem[]> = {
@@ -65,12 +121,7 @@ export default function Workshop() {
     { key: 'assigned', header: 'Assigné', render: (i) => <span className="text-xs text-muted-foreground">{i.assignedTo}</span> },
   ];
 
-  // Mock activities for workshop item
-  const selectedActivities = selected ? [
-    { id: 'wa1', user: selected.assignedTo, action: 'Fabrication créée', timestamp: '2024-07-01T09:00:00' },
-    { id: 'wa2', user: 'Marc Dupont', action: 'BAT envoyé au client', timestamp: '2024-07-02T11:30:00' },
-    { id: 'wa3', user: 'Système', action: `Statut → ${statusBadge[selected.status].label}`, timestamp: '2024-07-05T14:00:00' },
-  ] : [];
+  const { data: selectedActivities = [] } = useActivityLogs('workshop', selected?.id ?? null);
 
   const nextAction = (status: WorkshopStatus): { label: string; next: WorkshopStatus } | null => {
     const flow: [WorkshopStatus, string, WorkshopStatus][] = [
@@ -84,12 +135,23 @@ export default function Workshop() {
     return f ? { label: f[1], next: f[2] } : null;
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Atelier" subtitle="Chargement…" action={{ label: 'Nouvelle fabrication', onClick: () => {} }} />
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-lg" />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader
         title="Atelier"
         subtitle={`${allItems.length} fabrications`}
-        action={{ label: 'Nouvelle fabrication', onClick: () => toast.info('Formulaire nouvelle fabrication') }}
+        action={{ label: 'Nouvelle fabrication', onClick: openCreateForm }}
       >
         <div className="flex items-center border rounded-md overflow-hidden">
           <button className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'kanban' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} onClick={() => setViewMode('kanban')}>
@@ -101,7 +163,9 @@ export default function Workshop() {
         </div>
       </PageHeader>
 
-      {viewMode === 'kanban' ? (
+      {allItems.length === 0 ? (
+        <EmptyState icon={Wrench} title="Aucune fabrication" description="Cr\u00e9ez votre premi\u00e8re fabrication pour suivre la production." />
+      ) : viewMode === 'kanban' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           {workshopStages.map(stage => (
             <div key={stage.status} className={`bg-muted/30 rounded-lg border-t-2 ${stage.color} min-h-[200px]`}>
@@ -174,8 +238,17 @@ export default function Workshop() {
               {(() => {
                 const na = nextAction(selected.status);
                 return na ? (
-                  <Button size="sm" className="w-full mb-4 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1" onClick={() => toast.success(`${na.label} effectué`)}>
-                    <ArrowRight className="h-3 w-3" /> {na.label}
+                  <Button
+                    size="sm"
+                    className="w-full mb-4 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1"
+                    disabled={nextStepMutation.isPending}
+                    onClick={() => {
+                      nextStepMutation.mutate(selected.id, {
+                        onSuccess: () => setSelected(null),
+                      });
+                    }}
+                  >
+                    <ArrowRight className="h-3 w-3" /> {nextStepMutation.isPending ? '…' : na.label}
                   </Button>
                 ) : null;
               })()}
@@ -184,7 +257,7 @@ export default function Workshop() {
                 <div><div className="text-xs text-muted-foreground uppercase">Chantier</div><div className="font-medium font-mono">{selected.jobRef}</div></div>
                 <div><div className="text-xs text-muted-foreground uppercase">Assigné</div><div className="font-medium">{selected.assignedTo}</div></div>
                 <div><div className="text-xs text-muted-foreground uppercase">Échéance</div><div className="font-medium">{new Date(selected.dueDate).toLocaleDateString('fr-FR')}</div></div>
-                <div><div className="text-xs text-muted-foreground uppercase">Priorité</div><div className={`font-medium capitalize`}>{selected.priority}</div></div>
+                <div><div className="text-xs text-muted-foreground uppercase">Priorité</div><div className="font-medium capitalize">{selected.priority}</div></div>
               </div>
 
               <div className="text-sm mb-4">
@@ -198,6 +271,64 @@ export default function Workshop() {
               </div>
             </>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Create Form Drawer */}
+      <Sheet open={formOpen} onOpenChange={(open) => !open && setFormOpen(false)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader className="pb-4">
+            <SheetTitle>Nouvelle fabrication</SheetTitle>
+          </SheetHeader>
+
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            <CompanySelect value={formCompany} onChange={setFormCompany} />
+            <div className="space-y-1.5">
+              <Label htmlFor="w-title">Titre *</Label>
+              <Input id="w-title" value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Description de la fabrication" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="w-desc">Description</Label>
+              <Input id="w-desc" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Détails supplémentaires" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="w-job">Chantier *</Label>
+              <Select value={formJobId} onValueChange={setFormJobId}>
+                <SelectTrigger id="w-job"><SelectValue placeholder="Sélectionnez un chantier" /></SelectTrigger>
+                <SelectContent>
+                  {jobs.map(j => (
+                    <SelectItem key={j.id} value={j.id}>{j.reference} — {j.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="w-priority">Priorité</Label>
+              <Select value={formPriority} onValueChange={(v: 'low' | 'medium' | 'high') => setFormPriority(v)}>
+                <SelectTrigger id="w-priority"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Basse</SelectItem>
+                  <SelectItem value="medium">Moyenne</SelectItem>
+                  <SelectItem value="high">Haute</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="w-due">Échéance</Label>
+              <Input id="w-due" type="date" value={formDueDate} onChange={e => setFormDueDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="w-assigned">Assigné à</Label>
+              <Input id="w-assigned" value={formAssignedTo} onChange={e => setFormAssignedTo(e.target.value)} placeholder="Nom de l'opérateur" />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Création…' : 'Créer la fabrication'}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>Annuler</Button>
+            </div>
+          </form>
         </SheetContent>
       </Sheet>
     </div>

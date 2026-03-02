@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarCheck, HardHat, Camera, Clock, User, WifiOff } from 'lucide-react';
-import { useState } from 'react';
+import { CalendarCheck, HardHat, Camera, Clock, User } from 'lucide-react';
+import { SyncStatusBar } from '@/components/terrain/SyncStatusBar';
 
 const terrainTabs = [
   { path: '/terrain', label: "Aujourd'hui", icon: CalendarCheck },
@@ -13,7 +13,6 @@ const terrainTabs = [
 
 export function TerrainLayout() {
   const location = useLocation();
-  const [isOffline] = useState(true); // simulated
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -25,13 +24,10 @@ export function TerrainLayout() {
           </div>
           <span className="text-sm font-bold">Terrain</span>
         </div>
-        {isOffline && (
-          <div className="flex items-center gap-1.5 bg-warning/15 text-warning-foreground rounded-full px-2 py-0.5">
-            <WifiOff className="h-3 w-3" />
-            <span className="text-[10px] font-semibold">Hors ligne</span>
-          </div>
-        )}
       </header>
+
+      {/* Sync status */}
+      <SyncStatusBar />
 
       {/* Content */}
       <main className="flex-1 p-4 pb-20 overflow-y-auto">

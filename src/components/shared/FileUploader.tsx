@@ -34,7 +34,7 @@ export function FileUploader({ files, onUpload, compact = false }: FileUploaderP
     <div className="space-y-3">
       {/* Upload zone */}
       <button
-        onClick={() => { onUpload?.(); toast.info('Upload fichier (placeholder)'); }}
+        onClick={() => { onUpload?.(); toast.info('Bientôt disponible'); }}
         className={`w-full border-2 border-dashed rounded-lg flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors ${
           compact ? 'py-3 px-4' : 'py-6 px-4'
         }`}

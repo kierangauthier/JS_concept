@@ -2,20 +2,20 @@ import { useLocation, Link } from 'react-router-dom';
 import { useApp, getNavForRole } from '@/contexts/AppContext';
 import {
   LayoutDashboard, Users, FileText, HardHat, CalendarDays, MapPin,
-  ShoppingCart, Wrench, Receipt, Settings, ChevronLeft, ChevronRight,
+  ShoppingCart, Wrench, Receipt, Settings, ChevronLeft, ChevronRight, UserCog, Package, ClipboardCheck, CalendarOff, BarChart3, Upload,
 } from 'lucide-react';
 import { useState } from 'react';
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Users, FileText, HardHat, CalendarDays, MapPin,
-  ShoppingCart, Wrench, Receipt, Settings,
+  ShoppingCart, Wrench, Receipt, Settings, UserCog, Package, ClipboardCheck, CalendarOff, BarChart3, Upload,
 };
 
 export function AppSidebar() {
   const { currentUser } = useApp();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const navItems = getNavForRole(currentUser.role);
+  const navItems = getNavForRole(currentUser?.role ?? 'admin');
 
   return (
     <aside

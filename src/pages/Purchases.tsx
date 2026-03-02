@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { useFilterByCompany } from '@/contexts/AppContext';
-import { mockPurchases } from '@/services/mockData';
-import { mockActivities, mockAttachments, mockQuoteLines } from '@/services/mockDataExtended';
+import { useFilterByCompany, useApp } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { StatusBadge, CompanyBadge } from '@/components/shared/StatusBadge';
@@ -11,8 +9,15 @@ import { Purchase, PurchaseStatus } from '@/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { ArrowRight, Package, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Package, CheckCircle2, ShoppingCart } from 'lucide-react';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CompanySelect } from '@/components/shared/CompanySelect';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePurchases, usePurchaseDetail, useCreatePurchase, useMarkOrdered, useMarkReceived, useClients, useJobs, useActivityLogs, useAttachments } from '@/services/api/hooks';
 
 const workflowSteps: { status: PurchaseStatus; label: string; icon: React.ElementType }[] = [
   { status: 'draft', label: 'Demande', icon: Package },
@@ -21,21 +26,64 @@ const workflowSteps: { status: PurchaseStatus; label: string; icon: React.Elemen
 ];
 
 export default function Purchases() {
-  const purchases = useFilterByCompany(mockPurchases);
+  const { data: apiPurchases, isLoading, isError } = usePurchases();
+  const allPurchases: Purchase[] = apiPurchases ?? [];
+  const purchases = useFilterByCompany(allPurchases);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [statusFilter, setStatusFilter] = useState<PurchaseStatus | 'all'>('all');
 
+  const { selectedCompany } = useApp();
+  const createMutation = useCreatePurchase();
+  const markOrderedMutation = useMarkOrdered();
+  const markReceivedMutation = useMarkReceived();
+
+  // Data for form selects
+  const { data: apiClients } = useClients();
+  const { data: apiJobs } = useJobs();
+  const suppliers = useFilterByCompany(apiClients ?? []);
+  const jobsList = useFilterByCompany(apiJobs ?? []);
+
+  // Form state
+  const [formOpen, setFormOpen] = useState(false);
+  const [formSupplierId, setFormSupplierId] = useState('');
+  const [formJobId, setFormJobId] = useState('');
+  const [formAmount, setFormAmount] = useState('');
+  const [formOrderedAt, setFormOrderedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+
+  function openCreateForm() {
+    setFormSupplierId('');
+    setFormJobId('');
+    setFormAmount('');
+    setFormOrderedAt(new Date().toISOString().slice(0, 10));
+    setFormOpen(true);
+  }
+
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formSupplierId.trim()) { toast.error('Saisissez un fournisseur'); return; }
+    const amount = parseFloat(formAmount);
+    if (!amount || amount <= 0) { toast.error('Saisissez un montant valide'); return; }
+
+    const scope = selectedCompany === 'GROUP' ? formCompany : undefined;
+    await createMutation.mutateAsync({
+      data: {
+        supplierId: formSupplierId.trim(),
+        jobId: formJobId.trim() || undefined,
+        amount,
+        orderedAt: new Date(formOrderedAt).toISOString(),
+      },
+      companyScope: scope,
+    });
+    setFormOpen(false);
+  }
+
   const filtered = statusFilter === 'all' ? purchases : purchases.filter(p => p.status === statusFilter);
 
-  const purchaseActivities = selectedPurchase ? mockActivities.filter(a => a.entityId === selectedPurchase.id && a.entityType === 'purchase') : [];
-  const purchaseFiles = selectedPurchase ? mockAttachments.filter(a => a.entityId === selectedPurchase.id) : [];
-
-  // Fake purchase lines (reuse some quote lines as order lines)
-  const purchaseLines = selectedPurchase ? mockQuoteLines.slice(0, 3).map((l, i) => ({
-    ...l, id: `pl${i}`, designation: ['Panneaux D21a lot 18', 'Supports IPN galva x15', 'Massifs béton 50x50 x15'][i] || l.designation,
-    quantity: [18, 15, 15][i] || l.quantity,
-    unitPrice: [195, 280, 95][i] || l.unitPrice,
-  })) : [];
+  const { data: purchaseActivities = [] } = useActivityLogs('purchase', selectedPurchase?.id ?? null);
+  const { data: purchaseFiles = [] } = useAttachments('purchase', selectedPurchase?.id ?? null);
+  const { data: purchaseDetail } = usePurchaseDetail(selectedPurchase?.id ?? null);
+  const purchaseLines: any[] = purchaseDetail?.lines ?? [];
 
   const statusCounts = {
     all: purchases.length,
@@ -59,10 +107,18 @@ export default function Purchases() {
     { key: 'date', header: 'Date', sortable: true, accessor: (p) => p.orderedAt, render: (p) => <span className="text-xs text-muted-foreground">{new Date(p.orderedAt).toLocaleDateString('fr-FR')}</span> },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Achats" subtitle="Chargement…" action={{ label: 'Nouvelle demande', onClick: () => {} }} />
+        <div className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <PageHeader title="Achats" subtitle={`${purchases.length} commandes`} action={{ label: 'Nouvelle demande', onClick: () => toast.info('Formulaire nouvelle demande d\'achat') }} />
-
+      <PageHeader title="Achats" subtitle={`${purchases.length} commandes`} action={{ label: 'Nouvelle demande', onClick: openCreateForm }} />
       {/* Workflow status filter */}
       <div className="flex gap-2 flex-wrap">
         {[
@@ -84,13 +140,17 @@ export default function Purchases() {
         ))}
       </div>
 
-      <DataTable
-        data={filtered}
-        columns={columns}
-        searchPlaceholder="Rechercher une commande…"
-        searchAccessor={(p) => `${p.reference} ${p.supplierName} ${p.jobRef || ''}`}
-        onRowClick={(p) => setSelectedPurchase(p)}
-      />
+      {purchases.length === 0 ? (
+        <EmptyState icon={ShoppingCart} title="Aucune commande" description="Cr\u00e9ez votre premi\u00e8re demande d'achat." />
+      ) : (
+        <DataTable
+          data={filtered}
+          columns={columns}
+          searchPlaceholder="Rechercher une commande…"
+          searchAccessor={(p) => `${p.reference} ${p.supplierName} ${p.jobRef || ''}`}
+          onRowClick={(p) => setSelectedPurchase(p)}
+        />
+      )}
 
       {/* Purchase Detail Drawer */}
       <Sheet open={!!selectedPurchase} onOpenChange={(open) => !open && setSelectedPurchase(null)}>
@@ -112,10 +172,9 @@ export default function Purchases() {
                   const stepIdx = workflowSteps.findIndex(s => s.status === selectedPurchase.status);
                   const currentIdx = step.status === 'received' && selectedPurchase.status === 'partial' ? 1 : stepIdx;
                   const isActive = idx <= currentIdx;
-                  const isCurrent = idx === currentIdx;
                   return (
                     <div key={step.status} className="flex items-center gap-1 flex-1">
-                      <div className={`flex items-center gap-1.5 flex-1 ${isCurrent ? '' : ''}`}>
+                      <div className="flex items-center gap-1.5 flex-1">
                         <div className={`h-6 w-6 rounded-full flex items-center justify-center ${
                           isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                         }`}>
@@ -132,13 +191,31 @@ export default function Purchases() {
               {/* Actions */}
               <div className="flex gap-2 mb-4">
                 {selectedPurchase.status === 'draft' && (
-                  <Button size="sm" className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => toast.success('Commande passée')}>
-                    Passer commande
+                  <Button
+                    size="sm"
+                    className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+                    disabled={markOrderedMutation.isPending}
+                    onClick={() => {
+                      markOrderedMutation.mutate(selectedPurchase.id, {
+                        onSuccess: () => setSelectedPurchase(null),
+                      });
+                    }}
+                  >
+                    {markOrderedMutation.isPending ? '…' : 'Passer commande'}
                   </Button>
                 )}
-                {selectedPurchase.status === 'ordered' && (
-                  <Button size="sm" className="text-xs bg-success hover:bg-success/90 text-success-foreground" onClick={() => toast.success('Réception enregistrée')}>
-                    Réceptionner
+                {(selectedPurchase.status === 'ordered' || selectedPurchase.status === 'partial') && (
+                  <Button
+                    size="sm"
+                    className="text-xs bg-success hover:bg-success/90 text-success-foreground"
+                    disabled={markReceivedMutation.isPending}
+                    onClick={() => {
+                      markReceivedMutation.mutate(selectedPurchase.id, {
+                        onSuccess: () => setSelectedPurchase(null),
+                      });
+                    }}
+                  >
+                    {markReceivedMutation.isPending ? '…' : 'Réceptionner'}
                   </Button>
                 )}
               </div>
@@ -201,6 +278,61 @@ export default function Purchases() {
               </Tabs>
             </>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Create Form Drawer */}
+      <Sheet open={formOpen} onOpenChange={(open) => !open && setFormOpen(false)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader className="pb-4">
+            <SheetTitle>Nouvelle demande d'achat</SheetTitle>
+          </SheetHeader>
+
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            <CompanySelect value={formCompany} onChange={setFormCompany} />
+            <div className="space-y-1.5">
+              <Label htmlFor="p-supplier">Fournisseur *</Label>
+              <Select value={formSupplierId} onValueChange={setFormSupplierId}>
+                <SelectTrigger id="p-supplier">
+                  <SelectValue placeholder="Sélectionnez un fournisseur" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="p-job">Chantier (optionnel)</Label>
+              <Select value={formJobId || '__none__'} onValueChange={(v) => setFormJobId(v === '__none__' ? '' : v)}>
+                <SelectTrigger id="p-job">
+                  <SelectValue placeholder="Aucun chantier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Aucun</SelectItem>
+                  {jobsList.map(j => (
+                    <SelectItem key={j.id} value={j.id}>{j.reference} — {j.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="p-amount">Montant HT *</Label>
+              <Input id="p-amount" type="number" min="0" step="0.01" value={formAmount} onChange={e => setFormAmount(e.target.value)} placeholder="0.00" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="p-date">Date *</Label>
+              <Input id="p-date" type="date" value={formOrderedAt} onChange={e => setFormOrderedAt(e.target.value)} />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Création…' : 'Créer la demande'}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>Annuler</Button>
+            </div>
+          </form>
         </SheetContent>
       </Sheet>
     </div>

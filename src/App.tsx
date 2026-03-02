@@ -1,9 +1,8 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AppProvider } from "@/contexts/AppContext";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AppProvider, useApp } from "@/contexts/AppContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { TerrainLayout } from "@/components/layout/TerrainLayout";
 import Dashboard from "./pages/Dashboard";
@@ -11,10 +10,16 @@ import Clients from "./pages/Clients";
 import Quotes from "./pages/Quotes";
 import Jobs from "./pages/Jobs";
 import Planning from "./pages/Planning";
+import HR from "./pages/HR";
 import Purchases from "./pages/Purchases";
 import Workshop from "./pages/Workshop";
 import Invoicing from "./pages/Invoicing";
 import AdminPage from "./pages/AdminPage";
+import ImportData from "./pages/ImportData";
+import Catalog from "./pages/Catalog";
+import TimeValidation from "./pages/TimeValidation";
+import Absences from "./pages/Absences";
+import Reports from "./pages/Reports";
 import TerrainToday from "./pages/terrain/TerrainToday";
 import InterventionDetail from "./pages/terrain/InterventionDetail";
 import TerrainJobs from "./pages/terrain/TerrainJobs";
@@ -23,47 +28,96 @@ import TerrainHours from "./pages/terrain/TerrainHours";
 import TerrainProfile from "./pages/terrain/TerrainProfile";
 import TerrainQueue from "./pages/terrain/TerrainQueue";
 import NotFound from "./pages/NotFound";
+import LoginPage from "./pages/auth/LoginPage";
 
-const queryClient = new QueryClient();
+/**
+ * Wraps protected routes. Redirects to /login when not authenticated.
+ */
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useApp();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-muted-foreground text-sm">Chargement…</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+/**
+ * Redirects authenticated users away from /login.
+ */
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useApp();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-muted-foreground text-sm">Chargement…</div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <AppProvider>
     <TooltipProvider>
-      <AppProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Desktop layout */}
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/clients" element={<Clients />} />
-              <Route path="/quotes" element={<Quotes />} />
-              <Route path="/jobs" element={<Jobs />} />
-              <Route path="/planning" element={<Planning />} />
-              <Route path="/purchases" element={<Purchases />} />
-              <Route path="/workshop" element={<Workshop />} />
-              <Route path="/invoicing" element={<Invoicing />} />
-              <Route path="/admin" element={<AdminPage />} />
-            </Route>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
 
-            {/* Terrain mobile layout */}
-            <Route element={<TerrainLayout />}>
-              <Route path="/terrain" element={<TerrainToday />} />
-              <Route path="/terrain/intervention/:id" element={<InterventionDetail />} />
-              <Route path="/terrain/jobs" element={<TerrainJobs />} />
-              <Route path="/terrain/photos" element={<TerrainPhotos />} />
-              <Route path="/terrain/hours" element={<TerrainHours />} />
-              <Route path="/terrain/profile" element={<TerrainProfile />} />
-              <Route path="/terrain/queue" element={<TerrainQueue />} />
-            </Route>
+          {/* Protected desktop layout */}
+          <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/clients" element={<Clients />} />
+            <Route path="/quotes" element={<Quotes />} />
+            <Route path="/jobs" element={<Jobs />} />
+            <Route path="/planning" element={<Planning />} />
+            <Route path="/hr" element={<HR />} />
+            <Route path="/purchases" element={<Purchases />} />
+            <Route path="/workshop" element={<Workshop />} />
+            <Route path="/invoicing" element={<Invoicing />} />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/time-validation" element={<TimeValidation />} />
+            <Route path="/absences" element={<Absences />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/import" element={<ImportData />} />
+          </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AppProvider>
+          {/* Protected terrain mobile layout */}
+          <Route element={<RequireAuth><TerrainLayout /></RequireAuth>}>
+            <Route path="/terrain" element={<TerrainToday />} />
+            <Route path="/terrain/intervention/:id" element={<InterventionDetail />} />
+            <Route path="/terrain/jobs" element={<TerrainJobs />} />
+            <Route path="/terrain/photos" element={<TerrainPhotos />} />
+            <Route path="/terrain/hours" element={<TerrainHours />} />
+            <Route path="/terrain/profile" element={<TerrainProfile />} />
+            <Route path="/terrain/queue" element={<TerrainQueue />} />
+          </Route>
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
+  </AppProvider>
 );
 
 export default App;

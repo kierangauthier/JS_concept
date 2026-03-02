@@ -1,28 +1,71 @@
 import { useState, useMemo } from 'react';
-import { useFilterByCompany } from '@/contexts/AppContext';
-import { mockJobs, mockPurchases, mockTimeEntries } from '@/services/mockData';
-import { mockActivities, mockAttachments } from '@/services/mockDataExtended';
+import { useFilterByCompany, useApp } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { StatusBadge, CompanyBadge } from '@/components/shared/StatusBadge';
+import { CompanySelect } from '@/components/shared/CompanySelect';
 import { ActivityFeed } from '@/components/shared/ActivityFeed';
 import { FileUploader } from '@/components/shared/FileUploader';
 import { Job } from '@/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { List, CalendarDays, FileDown, Users, Camera, Clock, ShoppingCart, FileText, Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { List, CalendarDays, FileDown, Users, Camera, Clock, ShoppingCart, FileText, Info, Pencil, HardHat } from 'lucide-react';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useJobs, useJobDetail, useQuotes, useCreateJob, useUpdateJob, useUpdateJobStatus, useActivityLogs, useAttachments, useJobMargin, usePurchases } from '@/services/api/hooks';
+import { CreateJobPayload } from '@/services/api/jobs.api';
+
+const STATUS_ACTIONS: Partial<Record<Job['status'], { label: string; next: Job['status']; variant?: 'default' | 'destructive' | 'outline' }[]>> = {
+  planned: [{ label: 'Démarrer', next: 'in_progress' }],
+  in_progress: [
+    { label: 'Mettre en pause', next: 'paused', variant: 'outline' },
+    { label: 'Terminer', next: 'completed' },
+  ],
+  paused: [{ label: 'Reprendre', next: 'in_progress' }],
+  completed: [{ label: 'Facturer', next: 'invoiced' }],
+};
 
 export default function Jobs() {
-  const jobs = useFilterByCompany(mockJobs);
+  const { data: apiJobs, isLoading, isError } = useJobs();
+  const allJobs: Job[] = apiJobs ?? [];
+  const jobs = useFilterByCompany(allJobs);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
 
-  const jobPurchases = selectedJob ? mockPurchases.filter(p => p.jobId === selectedJob.id) : [];
-  const jobTimeEntries = selectedJob ? mockTimeEntries.filter(t => t.jobId === selectedJob.id) : [];
-  const jobActivities = selectedJob ? mockActivities.filter(a => a.entityId === selectedJob.id && a.entityType === 'job') : [];
-  const jobFiles = selectedJob ? mockAttachments.filter(a => a.entityId === selectedJob.id) : [];
+  const { selectedCompany } = useApp();
+
+  // Form state
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [formTitle, setFormTitle] = useState('');
+  const [formAddress, setFormAddress] = useState('');
+  const [formStartDate, setFormStartDate] = useState('');
+  const [formEndDate, setFormEndDate] = useState('');
+  const [formQuoteId, setFormQuoteId] = useState('');
+  const [formHourlyRate, setFormHourlyRate] = useState('');
+  const [formEstimatedHours, setFormEstimatedHours] = useState('');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+
+  // API hooks
+  const { data: jobDetail } = useJobDetail(selectedJob?.id ?? null);
+  const { data: apiQuotes } = useQuotes();
+  const acceptedQuotes = (apiQuotes ?? []).filter(q => q.status === 'accepted');
+
+  const createMutation = useCreateJob();
+  const updateMutation = useUpdateJob();
+  const statusMutation = useUpdateJobStatus();
+
+  const { data: apiPurchases } = usePurchases();
+  const jobPurchases = (apiPurchases ?? []).filter(p => p.jobId === selectedJob?.id);
+  const jobTimeEntries = jobDetail?.timeEntries ?? [];
+  const { data: jobActivities = [] } = useActivityLogs('job', selectedJob?.id ?? null);
+  const { data: jobFiles = [] } = useAttachments('job', selectedJob?.id ?? null);
+  const { data: jobMargin } = useJobMargin(selectedJob?.id ?? null);
 
   const columns: Column<Job>[] = [
     { key: 'reference', header: 'Réf.', sortable: true, accessor: (j) => j.reference, render: (j) => (
@@ -46,7 +89,6 @@ export default function Jobs() {
     { key: 'assignedTo', header: 'Équipe', render: (j) => <span className="text-xs text-muted-foreground">{j.assignedTo.join(', ')}</span> },
   ];
 
-  // Timeline grouping
   const statusOrder: Job['status'][] = ['in_progress', 'planned', 'paused', 'completed', 'invoiced'];
   const statusLabels: Record<string, string> = {
     in_progress: 'En cours', planned: 'Planifié', paused: 'En pause', completed: 'Terminé', invoiced: 'Facturé'
@@ -55,12 +97,71 @@ export default function Jobs() {
     return statusOrder.map(s => ({ status: s, label: statusLabels[s], jobs: jobs.filter(j => j.status === s) })).filter(g => g.jobs.length > 0);
   }, [jobs]);
 
+  function openCreateForm() {
+    setEditingJob(null);
+    setFormTitle('');
+    setFormAddress('');
+    setFormStartDate(new Date().toISOString().slice(0, 10));
+    setFormEndDate('');
+    setFormQuoteId('');
+    setFormHourlyRate('');
+    setFormEstimatedHours('');
+    setFormOpen(true);
+  }
+
+  function openEditForm(j: Job) {
+    setEditingJob(j);
+    setFormTitle(j.title);
+    setFormAddress(j.address);
+    setFormStartDate(j.startDate ? j.startDate.slice(0, 10) : '');
+    setFormEndDate(j.endDate ? j.endDate.slice(0, 10) : '');
+    setFormQuoteId(j.quoteId ?? '');
+    setFormHourlyRate(jobMargin?.hourlyRate ? String(jobMargin.hourlyRate) : '');
+    setFormEstimatedHours(jobMargin?.estimatedHours ? String(jobMargin.estimatedHours) : '');
+    setFormOpen(true);
+  }
+
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formTitle.trim()) { toast.error('Saisissez un titre'); return; }
+    if (!formAddress.trim()) { toast.error('Saisissez une adresse'); return; }
+    if (!formStartDate) { toast.error('Saisissez une date de début'); return; }
+
+    const payload: CreateJobPayload = {
+      title: formTitle.trim(),
+      address: formAddress.trim(),
+      startDate: new Date(formStartDate).toISOString(),
+      endDate: formEndDate ? new Date(formEndDate).toISOString() : undefined,
+      quoteId: formQuoteId && formQuoteId !== '__none__' ? formQuoteId : undefined,
+      hourlyRate: formHourlyRate ? parseFloat(formHourlyRate) : undefined,
+      estimatedHours: formEstimatedHours ? parseFloat(formEstimatedHours) : undefined,
+    };
+
+    if (editingJob) {
+      await updateMutation.mutateAsync({ id: editingJob.id, data: payload });
+    } else {
+      const scope = selectedCompany === 'GROUP' ? formCompany : undefined;
+      await createMutation.mutateAsync({ data: payload, companyScope: scope });
+    }
+    setFormOpen(false);
+    setEditingJob(null);
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Chantiers" subtitle="Chargement…" action={{ label: 'Nouveau chantier', onClick: () => {} }} />
+        <div className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader
         title="Chantiers"
         subtitle={`${jobs.length} chantiers`}
-        action={{ label: 'Nouveau chantier', onClick: () => toast.info('Formulaire nouveau chantier') }}
+        action={{ label: 'Nouveau chantier', onClick: openCreateForm }}
       >
         <div className="flex items-center border rounded-md overflow-hidden">
           <button className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'table' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} onClick={() => setViewMode('table')}>
@@ -72,7 +173,9 @@ export default function Jobs() {
         </div>
       </PageHeader>
 
-      {viewMode === 'table' ? (
+      {jobs.length === 0 ? (
+        <EmptyState icon={HardHat} title="Aucun chantier" description="Cr\u00e9ez votre premier chantier ou convertissez un devis accept\u00e9." />
+      ) : viewMode === 'table' ? (
         <DataTable
           data={jobs}
           columns={columns}
@@ -134,21 +237,73 @@ export default function Jobs() {
                 <p className="text-xs text-muted-foreground">{selectedJob.clientName} · {selectedJob.address}</p>
               </SheetHeader>
 
-              {/* Progress + Action */}
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Avancement</span>
-                    <span className="font-bold">{selectedJob.progress}%</span>
+              {/* Progress + Actions */}
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-muted-foreground">Avancement</span>
+                      <span className="font-bold">{selectedJob.progress}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${selectedJob.progress}%` }} />
+                    </div>
                   </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${selectedJob.progress}%` }} />
+                  <Button size="sm" className="text-xs gap-1" variant="outline" onClick={() => toast.info('Bientôt disponible')}>
+                    <FileDown className="h-3 w-3" /> Générer OS
+                  </Button>
+                </div>
+
+                {/* Status transition buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1"
+                    onClick={() => openEditForm(selectedJob)}
+                  >
+                    <Pencil className="h-3 w-3" /> Modifier
+                  </Button>
+                  {STATUS_ACTIONS[selectedJob.status]?.map(action => (
+                    <Button
+                      key={action.next}
+                      size="sm"
+                      variant={action.variant ?? 'default'}
+                      className="text-xs"
+                      disabled={statusMutation.isPending}
+                      onClick={() => statusMutation.mutate({ id: selectedJob.id, status: action.next })}
+                    >
+                      {statusMutation.isPending ? '…' : action.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Margin card */}
+              {jobMargin && (
+                <div className={`rounded-lg border p-3 mb-4 ${jobMargin.marginPercent >= 25 ? 'bg-success/5 border-success/30' : jobMargin.marginPercent >= 15 ? 'bg-warning/5 border-warning/30' : 'bg-destructive/5 border-destructive/30'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Marge chantier</span>
+                    <span className={`text-lg font-bold ${jobMargin.marginPercent >= 25 ? 'text-success' : jobMargin.marginPercent >= 15 ? 'text-warning' : 'text-destructive'}`}>
+                      {jobMargin.marginPercent}%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">Devisé</div>
+                      <div className="font-medium">{jobMargin.revenueHT.toLocaleString('fr-FR')} €</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Coût heures</div>
+                      <div className="font-medium">{jobMargin.costHours.toLocaleString('fr-FR')} € ({jobMargin.totalHours}h)</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Coût achats</div>
+                      <div className="font-medium">{jobMargin.costPurchases.toLocaleString('fr-FR')} €</div>
+                    </div>
                   </div>
                 </div>
-                <Button size="sm" className="text-xs gap-1" variant="outline" onClick={() => toast.success('Génération OS (PDF) - placeholder')}>
-                  <FileDown className="h-3 w-3" /> Générer OS
-                </Button>
-              </div>
+              )}
 
               <Tabs defaultValue="info" className="w-full">
                 <TabsList className="w-full grid grid-cols-7 h-9">
@@ -180,7 +335,7 @@ export default function Jobs() {
                   <div className="bg-muted/30 rounded-lg p-6 text-center">
                     <CalendarDays className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Planning détaillé du chantier</p>
-                    <p className="text-xs text-muted-foreground mt-1">Diagramme de Gantt — prochaine itération</p>
+                    <p className="text-xs text-muted-foreground mt-1">Bientôt disponible</p>
                   </div>
                 </TabsContent>
 
@@ -251,6 +406,78 @@ export default function Jobs() {
               </Tabs>
             </>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Create / Edit Form Drawer */}
+      <Sheet open={formOpen} onOpenChange={(open) => { if (!open) { setFormOpen(false); setEditingJob(null); } }}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="pb-4">
+            <SheetTitle>{editingJob ? `Modifier ${editingJob.reference}` : 'Nouveau chantier'}</SheetTitle>
+          </SheetHeader>
+
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            {!editingJob && <CompanySelect value={formCompany} onChange={setFormCompany} />}
+            <div className="space-y-1.5">
+              <Label htmlFor="j-title">Titre *</Label>
+              <Input id="j-title" value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Titre du chantier" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="j-address">Adresse *</Label>
+              <Input id="j-address" value={formAddress} onChange={e => setFormAddress(e.target.value)} placeholder="Adresse du chantier" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="j-start">Date début *</Label>
+                <Input id="j-start" type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="j-end">Date fin</Label>
+                <Input id="j-end" type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="j-rate">Taux horaire (€/h)</Label>
+                <Input id="j-rate" type="number" step="0.01" min="0" value={formHourlyRate} onChange={e => setFormHourlyRate(e.target.value)} placeholder="45" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="j-hours">Heures estimées</Label>
+                <Input id="j-hours" type="number" step="0.5" min="0" value={formEstimatedHours} onChange={e => setFormEstimatedHours(e.target.value)} placeholder="0" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="j-quote">Devis lié (optionnel)</Label>
+              <Select value={formQuoteId} onValueChange={setFormQuoteId}>
+                <SelectTrigger id="j-quote">
+                  <SelectValue placeholder="Aucun devis lié" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Aucun</SelectItem>
+                  {acceptedQuotes.map(q => (
+                    <SelectItem key={q.id} value={q.id}>{q.reference} — {q.subject}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={createMutation.isPending || updateMutation.isPending}
+              >
+                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editingJob ? 'Mettre à jour' : 'Créer le chantier'}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => { setFormOpen(false); setEditingJob(null); }}>
+                Annuler
+              </Button>
+            </div>
+          </form>
         </SheetContent>
       </Sheet>
     </div>

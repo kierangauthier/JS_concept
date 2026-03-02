@@ -1,0 +1,7 @@
+externalRef;reference;titre;client_ref;adresse;statut;date_debut;date_fin;taux_horaire;heures_estimees;montant_devis
+CHT-LEG-001;CHT-LEG-2025-001;Marquage parking centre commercial;CLI-005;12 Rue Commerce, Lyon;completed;2025-06-01;2025-07-15;42,00;120;18500,00
+CHT-LEG-002;CHT-LEG-2025-002;Signalisation RD75 phase 1;CLI-006;RD75 km 5, Rhône;completed;2025-04-15;2025-09-30;45,00;350;52000,00
+CHT-LEG-003;CHT-LEG-2025-003;Balisage déviation N7;CLI-004;N7, Vénissieux;completed;2025-08-01;2025-10-31;40,00;80;9200,00
+CHT-LEG-004;CHT-LEG-2025-004;Aménagement carrefour RD306;CLI-003;Carrefour RD306, Villeurbanne;in_progress;2025-11-01;;48,00;200;35000,00
+CHT-LEG-005;CHT-LEG-2025-005;Pose panneaux zone artisanale;CLI-008;ZA Les Chesnes, Vénissieux;in_progress;2026-01-10;;38,00;60;8400,00
+CHT-BAD-001;CHT-BAD-2025-001;Chantier client inconnu;CLI-999;Adresse fictive;planned;2026-04-01;;;
