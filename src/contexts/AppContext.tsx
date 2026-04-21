@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Company, User, UserRole } from '@/types';
-import { mockUsers } from '@/services/mockData';
 import { authApi } from '@/services/api/auth.api';
 import { authStore } from '@/services/api/http';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -23,7 +22,6 @@ interface AppContextType {
   setCurrentUser: (user: User | null) => void;
   selectedCompany: Company;
   setSelectedCompany: (company: Company) => void;
-  users: User[];
   // Auth
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -60,23 +58,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // On mount: try to restore session from localStorage
+  // On mount: try to restore session via httpOnly cookie.
+  // The cookie is sent automatically with credentials:include — no localStorage check needed.
   useEffect(() => {
     const tryRestore = async () => {
-      const tokens = authStore.getTokens();
-      if (!tokens?.accessToken) {
-        setIsLoading(false);
-        return;
-      }
       try {
         const user = await authApi.me();
         setCurrentUser(user);
         setIsAuthenticated(true);
-        // If user's company doesn't allow GROUP, reset scope
+        // If user's company doesn't allow GROUP scope, lock to their company
         if (!['admin', 'conducteur'].includes(user.role)) {
           setSelectedCompany(user.company as Company);
         }
       } catch {
+        // 401 = no valid session, user must log in
         authStore.setTokens(null);
         setCurrentUser(null);
       } finally {
@@ -126,7 +121,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCurrentUser,
         selectedCompany,
         setSelectedCompany: handleSetSelectedCompany,
-        users: mockUsers,
         isAuthenticated,
         isLoading,
         login,
@@ -164,25 +158,43 @@ export interface NavItem {
   path: string;
   icon: string;
   roles: UserRole[];
+  group?: string; // section label displayed above the first item of each group
 }
 
 export const navItems: NavItem[] = [
-  { title: 'Dashboard', path: '/', icon: 'LayoutDashboard', roles: ['admin', 'conducteur', 'comptable'] },
-  { title: 'Clients', path: '/clients', icon: 'Users', roles: ['admin', 'conducteur'] },
-  { title: 'Devis', path: '/quotes', icon: 'FileText', roles: ['admin', 'conducteur'] },
-  { title: 'Chantiers', path: '/jobs', icon: 'HardHat', roles: ['admin', 'conducteur', 'technicien'] },
-  { title: 'Planning', path: '/planning', icon: 'CalendarDays', roles: ['admin', 'conducteur'] },
-  { title: 'Techniciens', path: '/hr', icon: 'UserCog', roles: ['admin', 'conducteur'] },
-  { title: 'Terrain', path: '/terrain', icon: 'MapPin', roles: ['technicien'] },
-  { title: 'Achats', path: '/purchases', icon: 'ShoppingCart', roles: ['admin', 'conducteur', 'comptable'] },
-  { title: 'Catalogue', path: '/catalog', icon: 'Package', roles: ['admin', 'conducteur'] },
-  { title: 'Atelier', path: '/workshop', icon: 'Wrench', roles: ['admin', 'conducteur'] },
-  { title: 'Validation heures', path: '/time-validation', icon: 'ClipboardCheck', roles: ['admin', 'conducteur'] },
-  { title: 'Absences', path: '/absences', icon: 'CalendarOff', roles: ['admin', 'conducteur', 'technicien'] },
-  { title: 'Facturation', path: '/invoicing', icon: 'Receipt', roles: ['admin', 'comptable'] },
-  { title: 'Rapports', path: '/reports', icon: 'BarChart3', roles: ['admin', 'conducteur'] },
-  { title: 'Import données', path: '/admin/import', icon: 'Upload', roles: ['admin'] },
-  { title: 'Admin', path: '/admin', icon: 'Settings', roles: ['admin'] },
+  // ─── Pilotage ─────────────────────────────────────────────────────────────
+  { title: 'Dashboard',          path: '/',               icon: 'LayoutDashboard', roles: ['admin', 'conducteur', 'comptable'],                  group: 'Pilotage' },
+  { title: 'Rapports',           path: '/reports',        icon: 'BarChart3',       roles: ['admin', 'conducteur'] },
+
+  // ─── Commercial ──────────────────────────────────────────────────────────
+  { title: 'Clients',            path: '/clients',        icon: 'Users',           roles: ['admin', 'conducteur'],                               group: 'Commercial' },
+  { title: 'Devis',              path: '/quotes',         icon: 'FileText',        roles: ['admin', 'conducteur'] },
+  { title: 'Catalogue',          path: '/catalog',        icon: 'Package',         roles: ['admin', 'conducteur'] },
+
+  // ─── Production ──────────────────────────────────────────────────────────
+  { title: 'Chantiers',          path: '/jobs',           icon: 'HardHat',         roles: ['admin', 'conducteur', 'technicien', 'collaborateur'], group: 'Production' },
+  { title: 'Planning',           path: '/planning',       icon: 'CalendarDays',    roles: ['admin', 'conducteur'] },
+  { title: 'Équipes',            path: '/hr',             icon: 'UserCog',         roles: ['admin', 'conducteur'] },
+  { title: 'Atelier',            path: '/workshop',       icon: 'Wrench',          roles: ['admin', 'conducteur'] },
+  { title: 'Achats',             path: '/purchases',      icon: 'ShoppingCart',    roles: ['admin', 'conducteur', 'comptable'] },
+
+  // ─── Temps & RH ──────────────────────────────────────────────────────────
+  { title: 'Saisie heures',      path: '/time-entries',   icon: 'Clock',           roles: ['admin', 'conducteur', 'collaborateur'],              group: 'Temps & RH' },
+  { title: 'Validation',         path: '/time-validation',icon: 'ClipboardCheck',  roles: ['admin', 'conducteur'] },
+  { title: 'Absences',           path: '/absences',       icon: 'CalendarOff',     roles: ['admin', 'conducteur', 'technicien', 'collaborateur'] },
+
+  // ─── Facturation ─────────────────────────────────────────────────────────
+  { title: 'Factures',           path: '/invoicing',      icon: 'Receipt',         roles: ['admin', 'comptable'],                                group: 'Facturation' },
+
+  // ─── Terrain (technicien uniquement) ─────────────────────────────────────
+  { title: 'Terrain',            path: '/terrain',        icon: 'MapPin',          roles: ['technicien'],                                        group: 'Mon espace' },
+
+  // ─── Administration ──────────────────────────────────────────────────────
+  { title: 'Import',             path: '/admin/import',   icon: 'Upload',          roles: ['admin'],                                             group: 'Administration' },
+  { title: 'Paramètres',         path: '/admin',          icon: 'Settings',        roles: ['admin'] },
+
+  // ─── Assistant IA (bas de sidebar) ───────────────────────────────────────
+  { title: 'Assistant IA',       path: '/assistant',      icon: 'Sparkles',        roles: ['admin', 'conducteur', 'comptable', 'collaborateur'], group: '─' },
 ];
 
 export function getNavForRole(role: UserRole): NavItem[] {
