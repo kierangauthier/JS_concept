@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { useJobs, useTimeEntries, useCreateTimeEntry, useJobPhotos, usePresignJobPhoto, useCreateJobPhoto, useDeleteJobPhoto } from '@/services/api/hooks';
 import { jobsApi } from '@/services/api/jobs.api';
+import { plural } from '@/lib/format';
 
 export default function Terrain() {
   const { data: apiJobs, isLoading: loadingJobs } = useJobs();
@@ -160,8 +161,12 @@ export default function Terrain() {
         <div className="bg-card border rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Saisie d'heures</h3>
-            <button onClick={() => setFormOpen(false)} className="text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
+            <button
+              onClick={() => setFormOpen(false)}
+              className="h-12 w-12 flex items-center justify-center text-muted-foreground hover:text-foreground"
+              aria-label="Fermer"
+            >
+              <X className="h-5 w-5" />
             </button>
           </div>
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -191,7 +196,7 @@ export default function Terrain() {
               <Label htmlFor="te-desc" className="text-xs">Description *</Label>
               <Input id="te-desc" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Travaux effectués…" />
             </div>
-            <Button type="submit" size="sm" className="w-full" disabled={createTimeEntry.isPending}>
+            <Button type="submit" className="w-full h-12" disabled={createTimeEntry.isPending}>
               {createTimeEntry.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </form>
@@ -203,8 +208,12 @@ export default function Terrain() {
         <div className="bg-card border rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Photo chantier</h3>
-            <button onClick={() => setPhotoFormOpen(false)} className="text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
+            <button
+              onClick={() => setPhotoFormOpen(false)}
+              className="h-12 w-12 flex items-center justify-center text-muted-foreground hover:text-foreground"
+              aria-label="Fermer"
+            >
+              <X className="h-5 w-5" />
             </button>
           </div>
           <CompanySelect value={photoCompany} onChange={setPhotoCompany} />
@@ -361,7 +370,7 @@ function JobPhotoGallery({ jobId }: { jobId: string }) {
   return (
     <div className="mt-3">
       <div className="text-xs font-medium text-muted-foreground mb-2">
-        {photos.length} photo{photos.length > 1 ? 's' : ''}
+        {plural(photos.length, 'photo')}
       </div>
       <div className="grid grid-cols-3 gap-2">
         {photos.map(photo => {

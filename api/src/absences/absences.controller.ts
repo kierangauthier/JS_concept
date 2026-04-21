@@ -28,8 +28,13 @@ export class AbsencesController {
 
   @Post(':id/reject')
   @Roles('admin', 'conducteur')
-  reject(@Param('id') id: string, @Req() req: any) {
-    return this.absencesService.reject(id, req.companyId);
+  reject(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Req() req: any,
+    @Body() body: { reason?: string },
+  ) {
+    return this.absencesService.reject(id, userId, req.companyId, body?.reason);
   }
 
   @Delete(':id')

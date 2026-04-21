@@ -34,6 +34,11 @@ class SyncManager {
       .count();
   }
 
+  /** Count of mutations that exhausted their retries (status = 'failed'). */
+  async getFailedCount(): Promise<number> {
+    return offlineDb.mutations.where('status').equals('failed').count();
+  }
+
   async getLastSync(): Promise<number | null> {
     const meta = await offlineDb.meta.get('lastSync');
     return meta?.value ?? null;
@@ -52,10 +57,13 @@ class SyncManager {
       return { success: 0, failed: 0, total: 0 };
     }
 
-    // 2. Process FIFO
+    // 2. Process FIFO — only `pending` mutations. `failed` ones (≥ 3 retries)
+    //    are kept as a dead-letter queue so the user can inspect them and
+    //    retry manually from /terrain/queue instead of being hammered every
+    //    background sync.
     const pending = await offlineDb.mutations
       .where('status')
-      .anyOf('pending', 'failed')
+      .equals('pending')
       .sortBy('createdAt');
 
     const total = pending.length;
@@ -84,11 +92,24 @@ class SyncManager {
         success++;
       } catch (err: any) {
         const retries = m.retries + 1;
+        const becameFailed = retries >= 3;
         await offlineDb.mutations.update(m.id, {
-          status: retries >= 3 ? 'failed' : 'pending',
+          status: becameFailed ? 'failed' : 'pending',
           retries,
           errorMessage: err.message,
         });
+        if (becameFailed) {
+          // Surface the dead-letter event once so the user knows to inspect
+          // the queue — otherwise the mutation would stop being retried
+          // silently and the saved work could be forgotten.
+          try {
+            const { toast } = await import('sonner');
+            toast.error(
+              `Synchronisation impossible (${m.type}) — voir la file d'attente`,
+              { duration: 8000 },
+            );
+          } catch { /* sonner unavailable */ }
+        }
         failed++;
       }
     }
@@ -150,6 +171,17 @@ class SyncManager {
     const m = await offlineDb.mutations.get(id);
     if (m?.blobKey) await offlineDb.blobs.delete(m.blobKey).catch(() => {});
     await offlineDb.mutations.delete(id);
+  }
+
+  /** Re-queue every failed mutation for another round of attempts. */
+  async retryAllFailed(): Promise<number> {
+    const failed = await offlineDb.mutations.where('status').equals('failed').toArray();
+    if (failed.length === 0) return 0;
+    await offlineDb.mutations
+      .where('status')
+      .equals('failed')
+      .modify({ status: 'pending', retries: 0, errorMessage: undefined });
+    return failed.length;
   }
 
   private async syncOne(m: QueuedMutation) {

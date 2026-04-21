@@ -5,14 +5,19 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { MapPin, ChevronRight, Briefcase } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
+import { plural } from '@/lib/format';
+import { useQueryClient } from '@tanstack/react-query';
+import { PullToRefresh } from '@/components/terrain/PullToRefresh';
 
 export default function TerrainJobs() {
+  const queryClient = useQueryClient();
   const { data: apiJobs, isLoading } = useOfflineQuery(
     'jobs:all',
     ['jobs'],
     () => jobsApi.list({ limit: 200 }).then(r => r.data),
   );
   const jobs = useFilterByCompany(apiJobs ?? []).filter(j => ['in_progress', 'planned'].includes(j.status));
+  const handleRefresh = () => queryClient.invalidateQueries({ queryKey: ['jobs'] });
 
   if (isLoading) {
     return (
@@ -24,10 +29,11 @@ export default function TerrainJobs() {
   }
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="max-w-lg mx-auto space-y-4">
       <div>
         <h1 className="text-xl font-bold">Chantiers</h1>
-        <p className="text-xs text-muted-foreground">{jobs.length} chantier{jobs.length > 1 ? 's' : ''} assigné{jobs.length > 1 ? 's' : ''}</p>
+        <p className="text-xs text-muted-foreground">{plural(jobs.length, 'chantier assigné', 'chantiers assignés')}</p>
       </div>
 
       <div className="space-y-2">
@@ -62,5 +68,6 @@ export default function TerrainJobs() {
         </div>
       )}
     </div>
+    </PullToRefresh>
   );
 }

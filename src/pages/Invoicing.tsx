@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
+import { useUrlState } from '@/hooks/use-url-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInvoices, useInvoiceDetail, useUpdateInvoiceStatus, useCreateInvoice, useClients, useJobs, useActivityLogs, useAttachments, useSituations, useCreateSituation, useValidateSituation, useSendEmail, useReminderLogs, useRunReminders } from '@/services/api/hooks';
 import { invoicesApi } from '@/services/api/invoices.api';
@@ -19,7 +20,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Send, Plus, CheckCircle2, Loader2, Mail, Bell, Settings } from 'lucide-react';
+import { Download, Send, Plus, CheckCircle2, Loader2, Mail, Bell, Settings, Eye } from 'lucide-react';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
@@ -49,7 +51,12 @@ export default function Invoicing() {
   const allInvoices: Invoice[] = apiInvoices ?? [];
   const invoices = useFilterByCompany(allInvoices);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
+  const VALID_INVOICE_STATUSES: (InvoiceStatus | 'all')[] = ['all', 'draft', 'sent', 'paid', 'overdue', 'cancelled'];
+  const [statusFilterRaw, setStatusFilterRaw] = useUrlState('status', 'all');
+  const statusFilter = (VALID_INVOICE_STATUSES.includes(statusFilterRaw as any)
+    ? statusFilterRaw
+    : 'all') as InvoiceStatus | 'all';
+  const setStatusFilter = (s: InvoiceStatus | 'all') => setStatusFilterRaw(s);
   const { selectedCompany } = useApp();
 
   // Load invoice detail from API when selected (for situations)
@@ -79,6 +86,7 @@ export default function Invoicing() {
 
   // PDF download state
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
 
   // Email
   const sendEmailMutation = useSendEmail();
@@ -364,6 +372,14 @@ export default function Invoicing() {
                     <Send className="h-3 w-3" /> {updateStatusMutation.isPending ? '\u2026' : 'Envoyer'}
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1"
+                  onClick={() => setPdfPreviewOpen(true)}
+                >
+                  <Eye className="h-3 w-3" /> Aperçu
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -888,6 +904,18 @@ export default function Invoicing() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* PDF preview */}
+      <PdfPreviewDialog
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        title={selectedInvoice ? `Aperçu · Facture ${selectedInvoice.reference}` : 'Aperçu'}
+        fetchBlobUrl={async () => {
+          if (!selectedInvoice) throw new Error('Aucune facture sélectionnée');
+          return invoicesApi.previewPdf(selectedInvoice.id);
+        }}
+        onDownload={() => selectedInvoice ? handleDownloadPdf(selectedInvoice.id) : undefined}
+      />
     </div>
   );
 }

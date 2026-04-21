@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Upload, Image, Clock, PenTool, RefreshCw, WifiOff, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Upload, Image, Clock, PenTool, RefreshCw, WifiOff, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { offlineDb, QueuedMutation } from '@/services/offline/db';
 import { syncManager } from '@/services/offline/syncManager';
 import { useNetworkStatus } from '@/services/offline/networkStatus';
+import { plural } from '@/lib/format';
 
 const typeIcons: Record<string, React.ElementType> = {
   photo: Image,
@@ -72,7 +73,23 @@ export default function TerrainQueue() {
     toast.info('Supprime de la file');
   }
 
+  async function handleRetryAllFailed() {
+    const count = await syncManager.retryAllFailed();
+    if (count === 0) {
+      toast.info('Aucun element en echec a reessayer');
+      return;
+    }
+    toast.success(`${plural(count, 'element remis en attente', 'elements remis en attente')}`);
+    setSyncing(true);
+    const result = await syncManager.syncAll();
+    setSyncing(false);
+    await loadQueue();
+    if (result.success > 0) toast.success(`${result.success} synchronise(s)`);
+    if (result.failed > 0) toast.error(`${result.failed} echec(s) persistant(s)`);
+  }
+
   const pendingCount = queue.filter(q => ['pending', 'failed'].includes(q.status)).length;
+  const failedCount = queue.filter(q => q.status === 'failed').length;
 
   return (
     <div className="max-w-lg mx-auto space-y-4">
@@ -84,7 +101,7 @@ export default function TerrainQueue() {
         <div className="flex-1">
           <h1 className="text-xl font-bold">File d'attente</h1>
           <p className="text-xs text-muted-foreground">
-            {pendingCount} element{pendingCount > 1 ? 's' : ''} en attente
+            {plural(pendingCount, 'element en attente', 'elements en attente')}
           </p>
         </div>
       </div>
@@ -102,10 +119,27 @@ export default function TerrainQueue() {
         </div>
       )}
 
+      {/* Dead-letter banner when some mutations have been abandoned. */}
+      {failedCount > 0 && isOnline && (
+        <div className="flex items-start gap-3 bg-destructive/5 border border-destructive/20 rounded-xl p-3">
+          <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium">{plural(failedCount, 'element en echec', 'elements en echec')}</div>
+            <div className="text-xs text-muted-foreground mb-2">
+              Ces actions ne seront plus resynchronisees automatiquement. Verifiez qu'elles sont toujours valides, puis reessayez.
+            </div>
+            <Button size="sm" variant="destructive" className="h-9" onClick={handleRetryAllFailed} disabled={syncing}>
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              Reessayer tout
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Sync button */}
       <Button
         variant="outline"
-        className="w-full gap-1.5"
+        className="w-full gap-1.5 h-12"
         onClick={handleSync}
         disabled={syncing || pendingCount === 0}
       >
@@ -153,7 +187,7 @@ export default function TerrainQueue() {
                   {(item.status === 'failed' || item.status === 'pending') && isOnline && (
                     <button
                       onClick={() => handleRetryOne(item.id)}
-                      className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                      className="h-11 w-11 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
                       title="Reessayer"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />

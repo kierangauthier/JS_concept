@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNetworkStatus } from '@/services/offline/networkStatus';
 import { syncManager, SyncStatus, SyncState } from '@/services/offline/syncManager';
-import { Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle2, Loader2, LogIn } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle2, Loader2, LogIn, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { plural } from '@/lib/format';
 
 const STATE_CONFIG: Record<SyncState, {
   icon: React.ElementType;
@@ -19,6 +21,7 @@ const STATE_CONFIG: Record<SyncState, {
 
 export function SyncStatusBar() {
   const isOnline = useNetworkStatus();
+  const navigate = useNavigate();
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: 'idle' });
   const [pendingCount, setPendingCount] = useState(0);
   const [lastSync, setLastSync] = useState<number | null>(null);
@@ -72,13 +75,24 @@ export function SyncStatusBar() {
   // Don't render if no relevant state
   if (isOnline && pendingCount === 0 && syncStatus.state === 'idle') return null;
 
+  // When there is pending/failed work, the whole bar becomes a shortcut to the queue page.
+  const showQueueShortcut = pendingCount > 0 || syncStatus.state === 'error';
+  const openQueue = () => navigate('/terrain/queue');
+
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 text-xs ${config.bg}`}>
+    <div
+      className={`flex items-center gap-2 px-3 py-1.5 text-xs ${config.bg} ${showQueueShortcut ? 'cursor-pointer hover:brightness-95 transition' : ''}`}
+      onClick={showQueueShortcut ? openQueue : undefined}
+      role={showQueueShortcut ? 'button' : undefined}
+      tabIndex={showQueueShortcut ? 0 : undefined}
+      onKeyDown={showQueueShortcut ? (e) => { if (e.key === 'Enter' || e.key === ' ') openQueue(); } : undefined}
+      aria-label={showQueueShortcut ? 'Voir la file d\u2019attente de synchronisation' : undefined}
+    >
       <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${config.class} ${syncStatus.state === 'syncing' ? 'animate-spin' : ''}`} />
 
       <span className={`flex-1 ${config.class}`}>
         {!isOnline && (
-          <>Hors ligne{pendingCount > 0 ? ` \u00b7 ${pendingCount} action${pendingCount > 1 ? 's' : ''} en attente` : ''}</>
+          <>Hors ligne{pendingCount > 0 ? ` \u00b7 ${plural(pendingCount, 'action')} en attente` : ''}</>
         )}
         {isOnline && syncStatus.state === 'syncing' && (
           <>Synchronisation... {syncStatus.progress}/{syncStatus.total}</>
@@ -87,13 +101,13 @@ export function SyncStatusBar() {
           <>En ligne \u00b7 Tout synchronise</>
         )}
         {isOnline && syncStatus.state === 'error' && (
-          <>{pendingCount} echec{pendingCount > 1 ? 's' : ''}</>
+          <>{plural(pendingCount, 'echec')}</>
         )}
         {isOnline && syncStatus.state === 'auth_required' && (
           <>Reconnexion requise</>
         )}
         {isOnline && syncStatus.state === 'idle' && pendingCount > 0 && (
-          <>{pendingCount} action{pendingCount > 1 ? 's' : ''} en attente</>
+          <>{plural(pendingCount, 'action')} en attente</>
         )}
       </span>
 
@@ -108,7 +122,7 @@ export function SyncStatusBar() {
           variant="ghost"
           size="sm"
           className="h-5 px-2 text-[10px]"
-          onClick={handleSync}
+          onClick={(e) => { e.stopPropagation(); handleSync(); }}
         >
           <RefreshCw className="h-3 w-3 mr-1" />
           Synchroniser
@@ -123,6 +137,8 @@ export function SyncStatusBar() {
           />
         </div>
       )}
+
+      {showQueueShortcut && <ChevronRight className="h-3 w-3 opacity-60" />}
     </div>
   );
 }

@@ -372,6 +372,8 @@ model TimeEntry {
   hours       Decimal         @db.Decimal(4, 2)
   description String
   status      TimeEntryStatus @default(draft)
+  rejectionReason String?
+  rejectedByUserId String?
 
   userId    String
   user      User    @relation(fields: [userId], references: [id])
@@ -849,6 +851,8 @@ model Absence {
   endDate   DateTime @db.Date
   status    String   @default("pending") // pending | approved | rejected
   reason    String?
+  rejectionReason String?
+  rejectedByUserId String?
 
   userId    String
   user      User    @relation(fields: [userId], references: [id])

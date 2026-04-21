@@ -24,6 +24,7 @@ export class TimeEntriesService {
       hours: Number(t.hours),
       description: t.description,
       status: t.status,
+      rejectionReason: t.rejectionReason ?? null,
       company: t.company?.code ?? '',
     };
   }
@@ -129,8 +130,36 @@ export class TimeEntriesService {
     return { approved: entries.length };
   }
 
-  async reject(id: string, userId: string) {
-    return this.transition(id, 'submitted', 'rejected', userId, 'REJECT_TIME_ENTRY');
+  async reject(id: string, userId: string, rejectionReason?: string) {
+    const reason = (rejectionReason ?? '').trim();
+    if (reason.length < 3) {
+      throw new BadRequestException('Un motif de refus est requis (3 caractères minimum)');
+    }
+
+    const entry = await this.prisma.timeEntry.findUnique({ where: { id }, include: this.includes });
+    if (!entry) throw new NotFoundException('Time entry not found');
+    if (entry.status !== 'submitted') {
+      throw new BadRequestException(`Cannot transition from ${entry.status} to rejected`);
+    }
+
+    const updated = await this.prisma.timeEntry.update({
+      where: { id },
+      data: {
+        status: 'rejected',
+        rejectionReason: reason,
+        rejectedByUserId: userId,
+      },
+      include: this.includes,
+    });
+
+    this.audit.log({
+      action: 'REJECT_TIME_ENTRY', entity: 'time_entry', entityId: id,
+      before: { status: 'submitted' },
+      after: { status: 'rejected', rejectionReason: reason, rejectedByUserId: userId },
+      userId, companyId: entry.companyId,
+    });
+
+    return this.mapEntry(updated);
   }
 
   private async transition(id: string, from: TimeEntryStatus, to: TimeEntryStatus, userId: string, action: string) {
@@ -140,8 +169,15 @@ export class TimeEntriesService {
       throw new BadRequestException(`Cannot transition from ${entry.status} to ${to}`);
     }
 
+    // Reset the rejection trail when moving back to a non-rejected state (e.g. re-approval after correction).
+    const extraData: any = {};
+    if (from === 'rejected' && to !== 'rejected') {
+      extraData.rejectionReason = null;
+      extraData.rejectedByUserId = null;
+    }
+
     const updated = await this.prisma.timeEntry.update({
-      where: { id }, data: { status: to }, include: this.includes,
+      where: { id }, data: { status: to, ...extraData }, include: this.includes,
     });
 
     this.audit.log({

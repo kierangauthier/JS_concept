@@ -10,11 +10,20 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { PullToRefresh } from '@/components/terrain/PullToRefresh';
 
 export default function TerrainHours() {
+  const queryClient = useQueryClient();
   const { data: apiTimeEntries, isLoading } = useTimeEntries();
   const timeEntries = useFilterByCompany(apiTimeEntries ?? []);
   const { data: apiJobs } = useJobs();
+  const handleRefresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['time-entries'] }),
+      queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+    ]);
+  };
   const activeJobs = (apiJobs ?? []).filter(j => ['planned', 'in_progress'].includes(j.status));
   const createTimeEntry = useOfflineMutation<any, CreateTimeEntryPayload>(
     'timeEntry',
@@ -90,13 +99,14 @@ export default function TerrainHours() {
   }
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="max-w-lg mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold">Mes heures</h1>
           <p className="text-xs text-muted-foreground">Semaine en cours</p>
         </div>
-        <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => setFormOpen(!formOpen)}>
+        <Button className="gap-1.5 h-12 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => setFormOpen(!formOpen)}>
           <Plus className="h-3.5 w-3.5" /> Saisir
         </Button>
       </div>
@@ -143,10 +153,10 @@ export default function TerrainHours() {
             <Input id="te-desc" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Travaux réalisés…" />
           </div>
           <div className="flex gap-2">
-            <Button type="submit" size="sm" className="flex-1 text-xs" disabled={createTimeEntry.isPending}>
+            <Button type="submit" className="flex-1 h-12" disabled={createTimeEntry.isPending}>
               {createTimeEntry.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
-            <Button type="button" size="sm" variant="outline" className="text-xs" onClick={() => setFormOpen(false)}>Annuler</Button>
+            <Button type="button" variant="outline" className="h-12 px-4" onClick={() => setFormOpen(false)}>Annuler</Button>
           </div>
         </form>
       )}
@@ -207,5 +217,6 @@ export default function TerrainHours() {
         </div>
       )}
     </div>
+    </PullToRefresh>
   );
 }

@@ -6,10 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { jobsApi } from '@/services/api/jobs.api';
+import { plural } from '@/lib/format';
+import { useQueryClient } from '@tanstack/react-query';
+import { PullToRefresh } from '@/components/terrain/PullToRefresh';
 
 export default function TerrainPhotos() {
+  const queryClient = useQueryClient();
   const { data: apiJobs, isLoading: loadingJobs } = useJobs();
   const activeJobs = useFilterByCompany(apiJobs ?? []).filter(j => ['in_progress', 'planned'].includes(j.status));
+  const handleRefresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+      queryClient.invalidateQueries({ queryKey: ['job-photos'] }),
+    ]);
+  };
 
   if (loadingJobs) {
     return (
@@ -21,14 +31,15 @@ export default function TerrainPhotos() {
   }
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="max-w-lg mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold">Photos</h1>
-          <p className="text-xs text-muted-foreground">{activeJobs.length} chantier{activeJobs.length > 1 ? 's' : ''} actif{activeJobs.length > 1 ? 's' : ''}</p>
+          <p className="text-xs text-muted-foreground">{plural(activeJobs.length, 'chantier actif', 'chantiers actifs')}</p>
         </div>
         <Link to="/terrain">
-          <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground">
+          <Button className="gap-1.5 h-12 bg-primary hover:bg-primary/90 text-primary-foreground">
             <Camera className="h-3.5 w-3.5" /> Prendre
           </Button>
         </Link>
@@ -47,6 +58,7 @@ export default function TerrainPhotos() {
         </div>
       )}
     </div>
+    </PullToRefresh>
   );
 }
 
@@ -86,7 +98,7 @@ function JobPhotoSection({ jobId, jobRef, jobTitle }: { jobId: string; jobRef: s
       <div className="mb-3">
         <div className="text-xs font-bold font-mono">{jobRef}</div>
         <div className="text-sm font-medium truncate">{jobTitle}</div>
-        <div className="text-[10px] text-muted-foreground">{photos.length} photo{photos.length > 1 ? 's' : ''}</div>
+        <div className="text-[10px] text-muted-foreground">{plural(photos.length, 'photo')}</div>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {photos.map(photo => {

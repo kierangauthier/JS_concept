@@ -53,7 +53,11 @@ export class TimeEntriesController {
 
   @Post(':id/reject')
   @Roles('admin', 'conducteur')
-  reject(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    return this.timeEntriesService.reject(id, userId);
+  reject(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.timeEntriesService.reject(id, userId, body?.reason);
   }
 }

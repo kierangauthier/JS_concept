@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { CreateAbsenceDto, CreateAbsenceTypeDto } from './dto/create-absence.dto';
 
 @Injectable()
 export class AbsencesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+  ) {}
 
   private mapAbsence(a: any) {
     return {
@@ -13,6 +17,7 @@ export class AbsencesService {
       endDate: a.endDate.toISOString().slice(0, 10),
       status: a.status,
       reason: a.reason,
+      rejectionReason: a.rejectionReason ?? null,
       typeId: a.typeId,
       typeLabel: a.type?.label ?? '',
       userId: a.userId,
@@ -59,6 +64,12 @@ export class AbsencesService {
       include: this.includes,
     });
 
+    this.audit.log({
+      action: 'CREATE_ABSENCE', entity: 'absence', entityId: absence.id,
+      after: { startDate: dto.startDate, endDate: dto.endDate, typeId: dto.typeId },
+      userId, companyId,
+    });
+
     return this.mapAbsence(absence);
   }
 
@@ -74,10 +85,23 @@ export class AbsencesService {
       data: { status: 'approved', approvedByUserId: approverUserId },
       include: this.includes,
     });
+
+    this.audit.log({
+      action: 'APPROVE_ABSENCE', entity: 'absence', entityId: id,
+      before: { status: 'pending' },
+      after: { status: 'approved', approvedByUserId: approverUserId },
+      userId: approverUserId, companyId: absence.companyId,
+    });
+
     return this.mapAbsence(updated);
   }
 
-  async reject(id: string, companyId: string | null) {
+  async reject(id: string, rejecterUserId: string, companyId: string | null, rejectionReason?: string) {
+    const reason = (rejectionReason ?? '').trim();
+    if (reason.length < 3) {
+      throw new BadRequestException('Un motif de refus est requis (3 caractères minimum)');
+    }
+
     const where: any = { id };
     if (companyId) where.companyId = companyId;
     const absence = await this.prisma.absence.findFirst({ where });
@@ -86,9 +110,17 @@ export class AbsencesService {
 
     const updated = await this.prisma.absence.update({
       where: { id },
-      data: { status: 'rejected' },
+      data: { status: 'rejected', rejectionReason: reason, rejectedByUserId: rejecterUserId },
       include: this.includes,
     });
+
+    this.audit.log({
+      action: 'REJECT_ABSENCE', entity: 'absence', entityId: id,
+      before: { status: 'pending' },
+      after: { status: 'rejected', rejectionReason: reason, rejectedByUserId: rejecterUserId },
+      userId: rejecterUserId, companyId: absence.companyId,
+    });
+
     return this.mapAbsence(updated);
   }
 

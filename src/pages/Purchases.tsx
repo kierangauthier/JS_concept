@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
+import { useUrlState } from '@/hooks/use-url-state';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { StatusBadge, CompanyBadge } from '@/components/shared/StatusBadge';
@@ -30,7 +31,12 @@ export default function Purchases() {
   const allPurchases: Purchase[] = apiPurchases ?? [];
   const purchases = useFilterByCompany(allPurchases);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
-  const [statusFilter, setStatusFilter] = useState<PurchaseStatus | 'all'>('all');
+  const VALID_PURCHASE_STATUSES: (PurchaseStatus | 'all')[] = ['all', 'draft', 'ordered', 'received', 'partial'];
+  const [statusFilterRaw, setStatusFilterRaw] = useUrlState('status', 'all');
+  const statusFilter = (VALID_PURCHASE_STATUSES.includes(statusFilterRaw as any)
+    ? statusFilterRaw
+    : 'all') as PurchaseStatus | 'all';
+  const setStatusFilter = (s: PurchaseStatus | 'all') => setStatusFilterRaw(s);
 
   const { selectedCompany } = useApp();
   const createMutation = useCreatePurchase();
