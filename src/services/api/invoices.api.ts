@@ -88,6 +88,19 @@ export const invoicesApi = {
     URL.revokeObjectURL(url);
   },
 
+  /** Fetch the PDF as a blob URL for in-browser preview. Caller must revoke the URL. */
+  previewPdf: async (invoiceId: string): Promise<string> => {
+    const tokens = JSON.parse(localStorage.getItem('cm_tokens') ?? '{}');
+    const res = await fetch(`/api/invoices/${invoiceId}/pdf`, {
+      headers: {
+        ...(tokens.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}),
+      },
+    });
+    if (!res.ok) throw new Error('Erreur lors de la génération du PDF');
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
+
   exportFec: async (from: string, to: string): Promise<void> => {
     const tokens = JSON.parse(localStorage.getItem('cm_tokens') ?? '{}');
     const qs = new URLSearchParams({ from, to });

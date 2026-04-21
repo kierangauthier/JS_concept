@@ -80,6 +80,18 @@ export function useUpdateClient() {
   });
 }
 
+export function useArchiveClient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => clientsApi.archive(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      toast.success('Client archivé');
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Impossible d\u2019archiver le client'),
+  });
+}
+
 // ─── Quotes ─────────────────────────────────────────────────────────────────
 
 export function useQuotes() {
@@ -364,6 +376,31 @@ export function useCreateTimeEntry() {
       toast.success('Heures enregistrées');
     },
     onError: (err: any) => toast.error(err.message ?? 'Erreur saisie heures'),
+  });
+}
+
+export function useUpdateTimeEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { date?: string; hours?: number; description?: string } }) =>
+      timeEntriesApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      toast.success('Saisie mise à jour');
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Erreur mise à jour saisie'),
+  });
+}
+
+export function useDeleteTimeEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => timeEntriesApi.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      toast.success('Saisie supprimée');
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Erreur suppression saisie'),
   });
 }
 
@@ -1469,5 +1506,51 @@ export function useCashflow(horizon = 90) {
     queryFn: () => dashboardApi.getCashflow(horizon),
     enabled: isAuthenticated && canView,
     staleTime: 5 * 60_000,
+  });
+}
+
+// ─── AI ────────────────────────────────────────────────────────────────────
+
+import { aiApi } from './ai.api';
+
+export function useAiStatus() {
+  const { isAuthenticated } = useApp();
+  return useQuery({
+    queryKey: ['ai', 'status'],
+    queryFn: () => aiApi.status(),
+    enabled: isAuthenticated,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useDailyBriefing() {
+  const { isAuthenticated, selectedCompany } = useApp();
+  return useQuery({
+    queryKey: ['ai', 'briefing', selectedCompany],
+    queryFn: () => aiApi.getDailyBriefing(),
+    enabled: isAuthenticated,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useExtractQuoteLines() {
+  return useMutation({
+    mutationFn: (description: string) => aiApi.extractQuoteLines(description),
+    onError: (err: any) => toast.error(err.message ?? 'Extraction impossible'),
+  });
+}
+
+export function useDraftReminder() {
+  return useMutation({
+    mutationFn: (invoiceId: string) => aiApi.draftReminder(invoiceId),
+    onError: (err: any) => toast.error(err.message ?? 'Brouillon impossible'),
+  });
+}
+
+export function useAiChat() {
+  return useMutation({
+    mutationFn: ({ message, history }: { message: string; history?: { role: 'user' | 'assistant'; content: string }[] }) =>
+      aiApi.chat(message, history ?? []),
+    onError: (err: any) => toast.error(err.message ?? 'Assistant indisponible'),
   });
 }

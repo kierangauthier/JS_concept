@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { MapPin, Clock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useOfflineQuery } from '@/services/offline/hooks';
 import { teamPlanningApi } from '@/services/api/team-planning.api';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PullToRefresh } from '@/components/terrain/PullToRefresh';
 
 function getWeekStart(date: Date): string {
   const d = new Date(date);
@@ -14,12 +16,15 @@ function getWeekStart(date: Date): string {
 }
 
 export default function TerrainToday() {
+  const queryClient = useQueryClient();
   const weekStart = useMemo(() => getWeekStart(new Date()), []);
   const { data, isLoading } = useOfflineQuery(
     `planning:${weekStart}`,
     ['my-planning', weekStart],
     () => teamPlanningApi.getMyPlanning(weekStart),
   );
+
+  const handleRefresh = () => queryClient.invalidateQueries({ queryKey: ['my-planning'] });
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -43,6 +48,7 @@ export default function TerrainToday() {
   }
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="space-y-4 max-w-lg mx-auto">
       {/* Header */}
       <div>
@@ -80,6 +86,7 @@ export default function TerrainToday() {
         </div>
       )}
     </div>
+    </PullToRefresh>
   );
 }
 

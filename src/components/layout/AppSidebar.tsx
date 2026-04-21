@@ -5,8 +5,10 @@ import {
   ShoppingCart, Wrench, Receipt, Settings, ChevronLeft, ChevronRight,
   UserCog, Package, ClipboardCheck, CalendarOff, BarChart3, Upload, Sparkles, Clock,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+const SIDEBAR_COLLAPSED_KEY = 'cm_sidebar_collapsed';
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Users, FileText, HardHat, CalendarDays, MapPin,
@@ -34,7 +36,21 @@ function groupNavItems(items: NavItem[]): Array<{ group: string | null; items: N
 export function AppSidebar() {
   const { currentUser } = useApp();
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  // Persist collapse state across reloads so the user doesn't re-collapse every session.
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
+    } catch {
+      // Storage unavailable (private mode); the in-memory state still works.
+    }
+  }, [collapsed]);
   const navItems = getNavForRole(currentUser?.role ?? 'admin');
   const sections = groupNavItems(navItems);
 
@@ -87,9 +103,11 @@ export function AppSidebar() {
               <div className="space-y-0.5">
                 {section.items.map(item => {
                   const Icon = iconMap[item.icon] || LayoutDashboard;
-                  const isActive = item.path === '/'
-                    ? location.pathname === '/'
-                    : location.pathname.startsWith(item.path);
+                  // Exact match or strict prefix (item.path + '/'), so /jobs and /jobs-archive
+                  // don't both light up /jobs, and /admin/import doesn't light up /admin.
+                  const isActive =
+                    location.pathname === item.path ||
+                    (item.path !== '/' && location.pathname.startsWith(item.path + '/'));
                   const linkEl = (
                     <Link
                       key={item.path}

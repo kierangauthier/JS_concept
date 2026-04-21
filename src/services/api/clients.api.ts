@@ -35,4 +35,8 @@ export const clientsApi = {
 
   update: (id: string, data: UpdateClientPayload): Promise<Client> =>
     http.patch<Client>(`/clients/${id}`, data),
+
+  /** Soft-deletes a client (sets deletedAt). The client is hidden from list queries. */
+  archive: (id: string): Promise<{ deleted: boolean }> =>
+    http.delete<{ deleted: boolean }>(`/clients/${id}`),
 };

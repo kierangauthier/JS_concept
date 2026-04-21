@@ -83,4 +83,17 @@ export const quotesApi = {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   },
+
+  /** Fetch the PDF as a blob URL for in-browser preview. Caller must revoke the URL. */
+  previewPdf: async (quoteId: string): Promise<string> => {
+    const tokens = JSON.parse(localStorage.getItem('cm_tokens') ?? '{}');
+    const res = await fetch(`/api/quotes/${quoteId}/pdf`, {
+      headers: {
+        ...(tokens.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}),
+      },
+    });
+    if (!res.ok) throw new Error('Erreur lors de la génération du PDF');
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
 };
