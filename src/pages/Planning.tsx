@@ -24,6 +24,27 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PlanningSlot } from '@/services/api/planning.api';
 import { TeamPlanningSlotData } from '@/services/api/team-planning.api';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { toast } from 'sonner';
+import { useHotkeys } from '@/hooks/use-hotkeys';
+
+/** Returns true if [startHour, endHour) overlaps any slot of the same team on the same day. */
+function hasOverlap(
+  slots: TeamPlanningSlotData[],
+  teamId: string,
+  dateStr: string,
+  startHour: number,
+  endHour: number,
+  excludeSlotId?: string,
+): boolean {
+  return slots.some(s =>
+    s.teamId === teamId &&
+    s.date === dateStr &&
+    s.id !== excludeSlotId &&
+    startHour < s.endHour &&
+    endHour > s.startHour,
+  );
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -82,6 +103,16 @@ export default function Planning() {
 
   const [assignCompany, setAssignCompany] = useState<'ASP' | 'JS'>('ASP');
 
+  // Keyboard shortcuts for week nav and view switching. Ignored while typing.
+  useHotkeys([
+    { key: 'ArrowLeft',  ctrl: true, handler: (e) => { e.preventDefault(); setWeekOffset(o => o - 1); } },
+    { key: 'ArrowRight', ctrl: true, handler: (e) => { e.preventDefault(); setWeekOffset(o => o + 1); } },
+    { key: 'Home',                     handler: (e) => { e.preventDefault(); setWeekOffset(0); } },
+    { key: 't',                        handler: () => setWeekOffset(0) },
+    { key: 'e',                        handler: () => setViewMode('teams') },
+    { key: 'r',                        handler: () => setViewMode('techs') },
+  ]);
+
   const jobColorMap = useMemo(() => {
     const map: Record<string, string> = {};
     activeJobs.forEach((j, i) => { map[j.id] = JOB_COLORS[i % JOB_COLORS.length]; });
@@ -117,13 +148,13 @@ export default function Planning() {
               Techniciens
             </button>
           </div>
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setWeekOffset(o => o - 1)}>
+          <Button variant="outline" size="icon" className="h-7 w-7" title="Semaine précédente (Ctrl+←)" onClick={() => setWeekOffset(o => o - 1)}>
             <ChevronLeft className="h-3 w-3" />
           </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => setWeekOffset(0)}>
+          <Button variant="outline" size="sm" className="h-7 text-xs px-2" title="Aujourd'hui (T ou Home)" onClick={() => setWeekOffset(0)}>
             Aujourd'hui
           </Button>
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setWeekOffset(o => o + 1)}>
+          <Button variant="outline" size="icon" className="h-7 w-7" title="Semaine suivante (Ctrl+→)" onClick={() => setWeekOffset(o => o + 1)}>
             <ChevronRight className="h-3 w-3" />
           </Button>
         </div>
@@ -197,17 +228,61 @@ function TeamPlanningView({
   const unlockMutation = useUnlockWeek();
   const sendMutation = useSendPlanning();
 
+  const [slotToDelete, setSlotToDelete] = useState<TeamPlanningSlotData | null>(null);
+  const [draggedSlotId, setDraggedSlotId] = useState<string | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<string | null>(null);
+
   const status = weekData?.status ?? 'draft';
   const isLocked = status === 'locked';
   const teams = weekData?.teams ?? [];
   const slots = weekData?.slots ?? [];
 
   async function handleAssign(teamId: string, date: Date, startHour: number, endHour: number, jobId: string) {
+    const dateStr = toDateStr(date);
+    if (hasOverlap(slots, teamId, dateStr, startHour, endHour)) {
+      toast.error(`Créneau en conflit : ${startHour}h–${endHour}h chevauche un créneau existant.`);
+      return;
+    }
     const scope = selectedCompany === 'GROUP' ? assignCompany : undefined;
-    await createSlot.mutateAsync({
-      data: { teamId, date: toDateStr(date), startHour, endHour, jobId },
-      companyScope: scope,
-    });
+    try {
+      await createSlot.mutateAsync({
+        data: { teamId, date: dateStr, startHour, endHour, jobId },
+        companyScope: scope,
+      });
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Impossible de créer le créneau');
+    }
+  }
+
+  /**
+   * Move a slot to another day within the same team. We don't have a PATCH
+   * endpoint, so we delete then recreate. If the recreation fails, the original
+   * slot is already gone — we warn the user so they can retry via the popover.
+   */
+  async function moveSlot(slot: TeamPlanningSlotData, targetDate: Date) {
+    const newDateStr = toDateStr(targetDate);
+    if (newDateStr === slot.date) return;
+    if (hasOverlap(slots, slot.teamId, newDateStr, slot.startHour, slot.endHour, slot.id)) {
+      toast.error(`Impossible : ${slot.startHour}h–${slot.endHour}h chevauche un créneau existant ce jour.`);
+      return;
+    }
+    const scope = selectedCompany === 'GROUP' ? assignCompany : undefined;
+    try {
+      await deleteSlot.mutateAsync(slot.id);
+      await createSlot.mutateAsync({
+        data: {
+          teamId: slot.teamId,
+          date: newDateStr,
+          startHour: slot.startHour,
+          endHour: slot.endHour,
+          jobId: slot.jobId,
+        },
+        companyScope: scope,
+      });
+      toast.success(`Créneau déplacé au ${targetDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}`);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Déplacement échoué — recréez le créneau manuellement');
+    }
   }
 
   function getDayHours(teamId: string, dateStr: string): number {
@@ -244,8 +319,8 @@ function TeamPlanningView({
           {!isLocked && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" className="h-7 text-xs">
-                  <Lock className="h-3 w-3 mr-1" /> Verrouiller
+                <Button size="sm" className="h-7 text-xs" disabled={lockMutation.isPending}>
+                  <Lock className="h-3 w-3 mr-1" /> {lockMutation.isPending ? 'Verrouillage…' : 'Verrouiller'}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -257,7 +332,7 @@ function TeamPlanningView({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => lockMutation.mutate(weekStart)}>Verrouiller</AlertDialogAction>
+                  <AlertDialogAction disabled={lockMutation.isPending} onClick={() => lockMutation.mutate(weekStart)}>Verrouiller</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -266,8 +341,8 @@ function TeamPlanningView({
             <>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="sm" className="h-7 text-xs" variant="default">
-                    <Send className="h-3 w-3 mr-1" /> Envoyer par email
+                  <Button size="sm" className="h-7 text-xs" variant="default" disabled={sendMutation.isPending}>
+                    <Send className="h-3 w-3 mr-1" /> {sendMutation.isPending ? 'Envoi…' : 'Envoyer par email'}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -279,15 +354,15 @@ function TeamPlanningView({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Annuler</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => sendMutation.mutate(weekStart)}>Envoyer</AlertDialogAction>
+                    <AlertDialogAction disabled={sendMutation.isPending} onClick={() => sendMutation.mutate(weekStart)}>Envoyer</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
               {isAdmin && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="sm" className="h-7 text-xs" variant="outline">
-                      <Unlock className="h-3 w-3 mr-1" /> Déverrouiller
+                    <Button size="sm" className="h-7 text-xs" variant="outline" disabled={unlockMutation.isPending}>
+                      <Unlock className="h-3 w-3 mr-1" /> {unlockMutation.isPending ? 'Déverrouillage…' : 'Déverrouiller'}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -299,7 +374,7 @@ function TeamPlanningView({
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Annuler</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => unlockMutation.mutate(weekStart)}>Déverrouiller</AlertDialogAction>
+                      <AlertDialogAction disabled={unlockMutation.isPending} onClick={() => unlockMutation.mutate(weekStart)}>Déverrouiller</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -341,8 +416,37 @@ function TeamPlanningView({
                       .sort((a, b) => a.startHour - b.startHour);
                     const totalHours = getDayHours(team.id, dateStr);
 
+                    const cellKey = `${team.id}_${dateStr}`;
+                    const isDropTarget = dragOverCell === cellKey && draggedSlotId !== null;
+
                     return (
-                      <div key={di} className={`${di > 0 ? 'border-l' : ''} ${isToday(day) ? 'bg-primary/5' : ''}`}>
+                      <div
+                        key={di}
+                        className={`${di > 0 ? 'border-l' : ''} ${isToday(day) ? 'bg-primary/5' : ''} ${isDropTarget ? 'bg-primary/15 ring-2 ring-primary ring-inset' : ''}`}
+                        onDragOver={(e) => {
+                          if (draggedSlotId && !isLocked) {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            if (dragOverCell !== cellKey) setDragOverCell(cellKey);
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverCell === cellKey) setDragOverCell(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setDragOverCell(null);
+                          if (isLocked || !draggedSlotId) return;
+                          const slot = teamSlots.find(s => s.id === draggedSlotId);
+                          if (!slot) return;
+                          if (slot.teamId !== team.id) {
+                            toast.error('Le déplacement entre équipes n\'est pas encore supporté.');
+                            return;
+                          }
+                          moveSlot(slot, day);
+                          setDraggedSlotId(null);
+                        }}
+                      >
                         <div className={`text-center px-2 py-1.5 border-b ${isToday(day) ? 'bg-primary/10' : 'bg-muted/30'}`}>
                           <div className="text-[10px] font-medium text-muted-foreground uppercase">{DAY_LABELS[di]}</div>
                           <div className={`text-xs font-bold ${isToday(day) ? 'text-primary' : ''}`}>
@@ -370,12 +474,21 @@ function TeamPlanningView({
                           {daySlots.map(slot => {
                             const top = (slot.startHour - 7) * 20;
                             const height = (slot.endHour - slot.startHour) * 20;
+                            const isDragging = draggedSlotId === slot.id;
                             return (
                               <div
                                 key={slot.id}
-                                className={`absolute left-5 right-1 rounded px-1 flex items-center gap-0.5 group cursor-default overflow-hidden ${jobColorMap[slot.jobId] || 'bg-muted text-muted-foreground'}`}
+                                draggable={!isLocked}
+                                onDragStart={(e) => {
+                                  setDraggedSlotId(slot.id);
+                                  e.dataTransfer.effectAllowed = 'move';
+                                  // Some browsers require data to be set for the drag to start.
+                                  e.dataTransfer.setData('text/plain', slot.id);
+                                }}
+                                onDragEnd={() => { setDraggedSlotId(null); setDragOverCell(null); }}
+                                className={`absolute left-5 right-1 rounded px-1 flex items-center gap-0.5 group overflow-hidden ${jobColorMap[slot.jobId] || 'bg-muted text-muted-foreground'} ${isLocked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-40' : ''}`}
                                 style={{ top: `${top}px`, height: `${height}px` }}
-                                title={`${slot.startHour}h-${slot.endHour}h: ${slot.jobRef} — ${slot.jobTitle}`}
+                                title={isLocked ? `${slot.startHour}h-${slot.endHour}h: ${slot.jobRef} — ${slot.jobTitle}` : `${slot.startHour}h-${slot.endHour}h: ${slot.jobRef} — ${slot.jobTitle}\nGlissez pour déplacer`}
                               >
                                 <div className="flex-1 min-w-0">
                                   <div className="text-[10px] font-bold font-mono truncate">{slot.jobRef}</div>
@@ -385,9 +498,9 @@ function TeamPlanningView({
                                 </div>
                                 {!isLocked && (
                                   <button
-                                    onClick={() => deleteSlot.mutate(slot.id)}
+                                    onClick={() => setSlotToDelete(slot)}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                                    title="Retirer"
+                                    title="Retirer le créneau"
                                   >
                                     <X className="h-3 w-3" />
                                   </button>
@@ -417,6 +530,29 @@ function TeamPlanningView({
           })}
         </div>
       )}
+
+      {/* Confirm slot deletion */}
+      <ConfirmDialog
+        open={!!slotToDelete}
+        onOpenChange={(open) => !open && setSlotToDelete(null)}
+        title="Retirer ce créneau ?"
+        description={
+          slotToDelete ? (
+            <>
+              Créneau <strong>{slotToDelete.startHour}h–{slotToDelete.endHour}h</strong> sur{' '}
+              <strong>{slotToDelete.jobRef}</strong> ({slotToDelete.jobTitle}) sera supprimé.
+            </>
+          ) : null
+        }
+        confirmLabel="Retirer"
+        variant="destructive"
+        loading={deleteSlot.isPending}
+        onConfirm={async () => {
+          if (!slotToDelete) return;
+          await deleteSlot.mutateAsync(slotToDelete.id);
+          setSlotToDelete(null);
+        }}
+      />
     </div>
   );
 }

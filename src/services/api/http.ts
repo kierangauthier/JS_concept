@@ -18,6 +18,7 @@ let _tokens: AuthTokens | null = null;
 let _companyScope: string = 'GROUP';
 let _onLogout: (() => void) | null = null;
 let _refreshPromise: Promise<boolean> | null = null;
+let _sessionExpiredNotified = false;
 
 export const authStore = {
   getTokens: () => _tokens,
@@ -38,6 +39,7 @@ export const authStore = {
   setCompanyScope: (scope: string) => { _companyScope = scope; },
   getCompanyScope: () => _companyScope,
   onLogout: (fn: () => void) => { _onLogout = fn; },
+  resetSessionExpiredFlag: () => { _sessionExpiredNotified = false; },
 };
 
 // ─── Core request function ──────────────────────────────────────────────────
@@ -61,6 +63,17 @@ async function request<T>(
     // Try one refresh
     const refreshed = await silentRefresh();
     if (!refreshed) {
+      // Notify the user exactly once per logout cycle so they understand why
+      // they are being redirected (prevents silent logout + lost form drafts).
+      if (!_sessionExpiredNotified) {
+        _sessionExpiredNotified = true;
+        try {
+          const { toast } = await import('sonner');
+          toast.error('Session expirée — veuillez vous reconnecter');
+        } catch {
+          // Ignore — sonner unavailable (e.g. test env).
+        }
+      }
       _onLogout?.();
       throw new ApiError(401, 'Session expirée');
     }

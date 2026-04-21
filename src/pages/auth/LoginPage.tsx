@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,21 +9,20 @@ import { toast } from 'sonner';
 export default function LoginPage() {
   const { login } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo =
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/';
   const [email, setEmail] = useState('marc@asp-signalisation.fr');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('login submit clicked');
-    console.log('calling login(', email, ')');
     setLoading(true);
     try {
       await login(email, password);
-      console.log('login success, redirecting to /');
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
-      console.error('login error', err);
       const msg = err?.message && err.message !== 'Failed to fetch'
         ? err.message
         : 'Serveur inaccessible — vérifiez que l\'API est démarrée';

@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
+import { useFormGuard } from '@/hooks/use-dirty-form';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { CompanyBadge } from '@/components/shared/StatusBadge';
 import { CompanySelect } from '@/components/shared/CompanySelect';
 import { Client } from '@/types';
 import { toast } from 'sonner';
-import { useClients, useCreateClient, useUpdateClient } from '@/services/api/hooks';
+import { useClients, useCreateClient, useUpdateClient, useArchiveClient } from '@/services/api/hooks';
 import { CreateClientPayload } from '@/services/api/clients.api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -14,8 +15,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pencil, Users } from 'lucide-react';
+import { Pencil, Users, Archive } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 
 export default function Clients() {
   const { data: apiClients, isLoading, isError } = useClients();
@@ -25,6 +27,8 @@ export default function Clients() {
 
   const createMutation = useCreateClient();
   const updateMutation = useUpdateClient();
+  const archiveMutation = useArchiveClient();
+  const [clientToArchive, setClientToArchive] = useState<Client | null>(null);
 
   // Detail drawer
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -40,6 +44,25 @@ export default function Clients() {
   const [formCity, setFormCity] = useState('');
   const [formType, setFormType] = useState<'public' | 'private'>('private');
   const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formBaseline, setFormBaseline] = useState<unknown>(null);
+
+  const formValuesForGuard = useMemo(
+    () => ({
+      name: formName, contact: formContact, email: formEmail, phone: formPhone,
+      address: formAddress, city: formCity, type: formType,
+    }),
+    [formName, formContact, formEmail, formPhone, formAddress, formCity, formType],
+  );
+  const { guardClose: guardCloseForm } = useFormGuard(
+    formValuesForGuard,
+    formOpen ? (formBaseline as typeof formValuesForGuard | null) : null,
+    formOpen,
+  );
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingClient(null);
+    setFormBaseline(null);
+  };
 
   function openCreateForm() {
     setEditingClient(null);
@@ -50,6 +73,9 @@ export default function Clients() {
     setFormAddress('');
     setFormCity('');
     setFormType('private');
+    setFormBaseline({
+      name: '', contact: '', email: '', phone: '', address: '', city: '', type: 'private' as const,
+    });
     setFormOpen(true);
   }
 
@@ -62,6 +88,10 @@ export default function Clients() {
     setFormAddress(c.address);
     setFormCity(c.city);
     setFormType(c.type as 'public' | 'private');
+    setFormBaseline({
+      name: c.name, contact: c.contact, email: c.email, phone: c.phone,
+      address: c.address, city: c.city, type: c.type as 'public' | 'private',
+    });
     setFormOpen(true);
   }
 
@@ -86,8 +116,7 @@ export default function Clients() {
       const scope = selectedCompany === 'GROUP' ? formCompany : undefined;
       await createMutation.mutateAsync({ data: payload, companyScope: scope });
     }
-    setFormOpen(false);
-    setEditingClient(null);
+    closeForm();
   }
 
   const columns: Column<Client>[] = [
@@ -147,6 +176,14 @@ export default function Clients() {
                 <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => { openEditForm(selectedClient); setSelectedClient(null); }}>
                   <Pencil className="h-3 w-3" /> Modifier
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => setClientToArchive(selectedClient)}
+                >
+                  <Archive className="h-3 w-3" /> Archiver
+                </Button>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -162,7 +199,7 @@ export default function Clients() {
       </Sheet>
 
       {/* Create / Edit Form Drawer */}
-      <Sheet open={formOpen} onOpenChange={(open) => { if (!open) { setFormOpen(false); setEditingClient(null); } }}>
+      <Sheet open={formOpen} onOpenChange={(open) => { if (!open) guardCloseForm(closeForm); }}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader className="pb-4">
             <SheetTitle>{editingClient ? `Modifier ${editingClient.name}` : 'Nouveau client'}</SheetTitle>
@@ -209,13 +246,36 @@ export default function Clients() {
               <Button type="submit" className="flex-1" disabled={createMutation.isPending || updateMutation.isPending}>
                 {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editingClient ? 'Mettre à jour' : 'Créer le client'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => { setFormOpen(false); setEditingClient(null); }}>
+              <Button type="button" variant="outline" onClick={() => guardCloseForm(closeForm)}>
                 Annuler
               </Button>
             </div>
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* Archive confirmation */}
+      <ConfirmDialog
+        open={!!clientToArchive}
+        onOpenChange={(open) => !open && setClientToArchive(null)}
+        title="Archiver ce client ?"
+        description={
+          clientToArchive ? (
+            <>
+              <strong>{clientToArchive.name}</strong> n'apparaîtra plus dans la liste. Ses devis, factures et chantiers existants ne seront pas supprimés.
+            </>
+          ) : null
+        }
+        confirmLabel="Archiver"
+        variant="destructive"
+        loading={archiveMutation.isPending}
+        onConfirm={async () => {
+          if (!clientToArchive) return;
+          await archiveMutation.mutateAsync(clientToArchive.id);
+          setClientToArchive(null);
+          setSelectedClient(null);
+        }}
+      />
     </div>
   );
 }

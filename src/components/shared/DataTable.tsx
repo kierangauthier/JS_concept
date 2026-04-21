@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ChevronUp, ChevronDown, ChevronsUpDown, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { plural } from '@/lib/format';
 
 export interface Column<T> {
   key: string;
@@ -63,6 +64,7 @@ export function DataTable<T extends { id: string }>({
       setSortKey(key);
       setSortDir('asc');
     }
+    setPage(0);
   };
 
   return (
@@ -127,7 +129,7 @@ export function DataTable<T extends { id: string }>({
       </div>
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>{sorted.length} résultat{sorted.length > 1 ? 's' : ''}</span>
+          <span>{plural(sorted.length, 'résultat')}</span>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
               <ChevronLeft className="h-4 w-4" />

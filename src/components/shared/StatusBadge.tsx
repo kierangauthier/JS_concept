@@ -36,7 +36,14 @@ const invoiceStatusMap: Record<InvoiceStatus, BadgeConfig> = {
   cancelled: { label: 'Annulée', className: 'bg-muted text-muted-foreground' },
 };
 
-type StatusType = 'quote' | 'job' | 'purchase' | 'invoice';
+const timeEntryStatusMap: Record<string, BadgeConfig> = {
+  draft: { label: 'Brouillon', className: 'bg-muted text-muted-foreground' },
+  submitted: { label: 'Soumis', className: 'bg-info/15 text-info' },
+  approved: { label: 'Validé', className: 'bg-success/15 text-success' },
+  rejected: { label: 'Rejeté', className: 'bg-destructive/15 text-destructive' },
+};
+
+type StatusType = 'quote' | 'job' | 'purchase' | 'invoice' | 'time-entry';
 
 interface StatusBadgeProps {
   type: StatusType;
@@ -51,9 +58,16 @@ export function StatusBadge({ type, status }: StatusBadgeProps) {
     case 'job': config = jobStatusMap[status as JobStatus]; break;
     case 'purchase': config = purchaseStatusMap[status as PurchaseStatus]; break;
     case 'invoice': config = invoiceStatusMap[status as InvoiceStatus]; break;
+    case 'time-entry': config = timeEntryStatusMap[status]; break;
   }
 
-  if (!config) return <span>{status}</span>;
+  if (!config) {
+    return (
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
+        {status}
+      </span>
+    );
+  }
 
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${config.className}`}>

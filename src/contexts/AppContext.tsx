@@ -85,6 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const data = await authApi.login(email, password);
     setCurrentUser(data.user);
     setIsAuthenticated(true);
+    authStore.resetSessionExpiredFlag();
     // Set initial company scope based on role
     if (['admin', 'conducteur'].includes(data.user.role)) {
       setSelectedCompany('GROUP');

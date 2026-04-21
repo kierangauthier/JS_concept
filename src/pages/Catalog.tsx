@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Package, Plus, Upload, Pencil, Trash2, FolderPlus } from 'lucide-react';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { plural } from '@/lib/format';
 import {
   useCatalogProducts,
   useCatalogCategories,
@@ -42,6 +44,7 @@ export default function Catalog() {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [categoryFormOpen, setCategoryFormOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [productToDelete, setProductToDelete] = useState<CatalogProduct | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -167,7 +170,7 @@ export default function Catalog() {
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e) => { e.stopPropagation(); openEditForm(p); }}>
             <Pencil className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(p.id); }}>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={(e) => { e.stopPropagation(); setProductToDelete(p); }}>
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>
@@ -188,7 +191,7 @@ export default function Catalog() {
     <div className="space-y-6">
       <PageHeader
         title="Catalogue"
-        subtitle={`${products.length} produit${products.length > 1 ? 's' : ''}`}
+        subtitle={plural(products.length, 'produit')}
         action={
           <div className="flex items-center gap-2">
             <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleImport} />
@@ -318,6 +321,29 @@ export default function Catalog() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* Delete product confirmation */}
+      <ConfirmDialog
+        open={!!productToDelete}
+        onOpenChange={(open) => !open && setProductToDelete(null)}
+        title="Supprimer ce produit ?"
+        description={
+          productToDelete ? (
+            <>
+              Vous êtes sur le point de supprimer <strong>{productToDelete.designation}</strong>
+              {productToDelete.reference ? <> (<code>{productToDelete.reference}</code>)</> : null}. Cette action est irréversible.
+            </>
+          ) : null
+        }
+        confirmLabel="Supprimer"
+        variant="destructive"
+        loading={deleteMutation.isPending}
+        onConfirm={async () => {
+          if (!productToDelete) return;
+          await deleteMutation.mutateAsync(productToDelete.id);
+          setProductToDelete(null);
+        }}
+      />
     </div>
   );
 }

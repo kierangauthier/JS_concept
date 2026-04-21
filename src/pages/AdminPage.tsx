@@ -126,20 +126,14 @@ export default function AdminPage() {
       });
     } else {
       if (!formPassword || formPassword.length < 6) { toast.error('Mot de passe : 6 caractères minimum'); return; }
-      // We need companyId, not code. The backend will validate it.
-      // For now we pass the code and resolve on the backend.
-      // Actually we need the real company ID. We'll pass the company code and let the backend resolve.
-      // Looking at the controller, it expects companyId (database ID).
-      // The users list gives us company code. We need to find the company ID from code.
-      // Since we don't have a company list API, we'll use a workaround: pass the code as ID
-      // Actually, the backend stores companyId as a cuid. Let's pass it and the backend validates.
-      // We'll need to add a small lookup. For now, we'll store company IDs from users.
+      // The backend accepts either the company code (ASP/JS) or a cuid as companyId
+      // and resolves it server-side (see users.controller.ts → create).
       await createMutation.mutateAsync({
         name: formName.trim(),
         email: formEmail.trim(),
         password: formPassword,
         role: formRole,
-        companyId: formCompanyCode, // Backend will resolve company code to ID
+        companyId: formCompanyCode,
       });
     }
     setFormOpen(false);

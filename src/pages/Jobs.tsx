@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useFormGuard } from '@/hooks/use-dirty-form';
+import { useUrlState } from '@/hooks/use-url-state';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, Column } from '@/components/shared/DataTable';
@@ -35,7 +37,9 @@ export default function Jobs() {
   const allJobs: Job[] = apiJobs ?? [];
   const jobs = useFilterByCompany(allJobs);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
+  const [viewModeRaw, setViewModeRaw] = useUrlState('view', 'table');
+  const viewMode = (viewModeRaw === 'timeline' ? 'timeline' : 'table') as 'table' | 'timeline';
+  const setViewMode = (v: 'table' | 'timeline') => setViewModeRaw(v);
 
   const { selectedCompany } = useApp();
 
@@ -50,6 +54,27 @@ export default function Jobs() {
   const [formHourlyRate, setFormHourlyRate] = useState('');
   const [formEstimatedHours, setFormEstimatedHours] = useState('');
   const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formBaseline, setFormBaseline] = useState<unknown>(null);
+
+  const formValuesForGuard = useMemo(
+    () => ({
+      title: formTitle, address: formAddress,
+      startDate: formStartDate, endDate: formEndDate,
+      quoteId: formQuoteId, hourlyRate: formHourlyRate,
+      estimatedHours: formEstimatedHours,
+    }),
+    [formTitle, formAddress, formStartDate, formEndDate, formQuoteId, formHourlyRate, formEstimatedHours],
+  );
+  const { guardClose: guardCloseForm } = useFormGuard(
+    formValuesForGuard,
+    formOpen ? (formBaseline as typeof formValuesForGuard | null) : null,
+    formOpen,
+  );
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingJob(null);
+    setFormBaseline(null);
+  };
 
   // API hooks
   const { data: jobDetail } = useJobDetail(selectedJob?.id ?? null);
@@ -101,23 +126,36 @@ export default function Jobs() {
     setEditingJob(null);
     setFormTitle('');
     setFormAddress('');
-    setFormStartDate(new Date().toISOString().slice(0, 10));
+    const startDate = new Date().toISOString().slice(0, 10);
+    setFormStartDate(startDate);
     setFormEndDate('');
     setFormQuoteId('');
     setFormHourlyRate('');
     setFormEstimatedHours('');
+    setFormBaseline({
+      title: '', address: '', startDate, endDate: '', quoteId: '',
+      hourlyRate: '', estimatedHours: '',
+    });
     setFormOpen(true);
   }
 
   function openEditForm(j: Job) {
     setEditingJob(j);
-    setFormTitle(j.title);
-    setFormAddress(j.address);
-    setFormStartDate(j.startDate ? j.startDate.slice(0, 10) : '');
-    setFormEndDate(j.endDate ? j.endDate.slice(0, 10) : '');
-    setFormQuoteId(j.quoteId ?? '');
-    setFormHourlyRate(jobMargin?.hourlyRate ? String(jobMargin.hourlyRate) : '');
-    setFormEstimatedHours(jobMargin?.estimatedHours ? String(jobMargin.estimatedHours) : '');
+    const title = j.title;
+    const address = j.address;
+    const startDate = j.startDate ? j.startDate.slice(0, 10) : '';
+    const endDate = j.endDate ? j.endDate.slice(0, 10) : '';
+    const quoteId = j.quoteId ?? '';
+    const hourlyRate = jobMargin?.hourlyRate ? String(jobMargin.hourlyRate) : '';
+    const estimatedHours = jobMargin?.estimatedHours ? String(jobMargin.estimatedHours) : '';
+    setFormTitle(title);
+    setFormAddress(address);
+    setFormStartDate(startDate);
+    setFormEndDate(endDate);
+    setFormQuoteId(quoteId);
+    setFormHourlyRate(hourlyRate);
+    setFormEstimatedHours(estimatedHours);
+    setFormBaseline({ title, address, startDate, endDate, quoteId, hourlyRate, estimatedHours });
     setFormOpen(true);
   }
 
@@ -143,8 +181,7 @@ export default function Jobs() {
       const scope = selectedCompany === 'GROUP' ? formCompany : undefined;
       await createMutation.mutateAsync({ data: payload, companyScope: scope });
     }
-    setFormOpen(false);
-    setEditingJob(null);
+    closeForm();
   }
 
   if (isLoading) {
@@ -410,7 +447,7 @@ export default function Jobs() {
       </Sheet>
 
       {/* Create / Edit Form Drawer */}
-      <Sheet open={formOpen} onOpenChange={(open) => { if (!open) { setFormOpen(false); setEditingJob(null); } }}>
+      <Sheet open={formOpen} onOpenChange={(open) => { if (!open) guardCloseForm(closeForm); }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader className="pb-4">
             <SheetTitle>{editingJob ? `Modifier ${editingJob.reference}` : 'Nouveau chantier'}</SheetTitle>
@@ -473,7 +510,7 @@ export default function Jobs() {
               >
                 {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editingJob ? 'Mettre à jour' : 'Créer le chantier'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => { setFormOpen(false); setEditingJob(null); }}>
+              <Button type="button" variant="outline" onClick={() => guardCloseForm(closeForm)}>
                 Annuler
               </Button>
             </div>

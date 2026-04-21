@@ -1,4 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useFormGuard } from '@/hooks/use-dirty-form';
+import { useUrlState } from '@/hooks/use-url-state';
 import { useFilterByCompany } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge, CompanyBadge } from '@/components/shared/StatusBadge';
@@ -11,7 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Copy, ArrowRight, GripVertical, List, Columns3, Plus, Trash2, Pencil, FileText as FileTextIcon, Download, Mail, Loader2, BookTemplate, Save } from 'lucide-react';
+import { Copy, ArrowRight, GripVertical, List, Columns3, Plus, Trash2, Pencil, FileText as FileTextIcon, Download, Mail, Loader2, BookTemplate, Save, Eye } from 'lucide-react';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -58,7 +61,9 @@ export default function Quotes() {
   const quotes = useFilterByCompany(allQuotes);
 
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [viewModeRaw, setViewModeRaw] = useUrlState('view', 'kanban');
+  const viewMode = (viewModeRaw === 'list' ? 'list' : 'kanban') as 'kanban' | 'list';
+  const setViewMode = (v: 'kanban' | 'list') => setViewModeRaw(v);
 
   const { selectedCompany } = useApp();
 
@@ -70,6 +75,23 @@ export default function Quotes() {
   const [formValidUntil, setFormValidUntil] = useState('');
   const [formLines, setFormLines] = useState<QuoteLineForm[]>([defaultLine()]);
   const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  // Snapshot for dirty detection — null while the form is closed.
+  const [formBaseline, setFormBaseline] = useState<unknown>(null);
+
+  const formValuesForGuard = useMemo(
+    () => ({ clientId: formClientId, subject: formSubject, validUntil: formValidUntil, lines: formLines }),
+    [formClientId, formSubject, formValidUntil, formLines],
+  );
+  const { guardClose: guardCloseForm } = useFormGuard(
+    formValuesForGuard,
+    formOpen ? (formBaseline as typeof formValuesForGuard | null) : null,
+    formOpen,
+  );
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingQuote(null);
+    setFormBaseline(null);
+  };
 
   // API hooks
   const { data: quoteDetail } = useQuoteDetail(selectedQuote?.id ?? null);
@@ -83,6 +105,7 @@ export default function Quotes() {
   const [emailTo, setEmailTo] = useState('');
   const [emailSubject, setEmailSubject] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
 
   function openEmailDialog() {
     if (!selectedQuote) return;
@@ -212,8 +235,11 @@ export default function Quotes() {
     setFormSubject('');
     const d = new Date();
     d.setDate(d.getDate() + 30);
-    setFormValidUntil(d.toISOString().slice(0, 10));
-    setFormLines([defaultLine()]);
+    const validUntil = d.toISOString().slice(0, 10);
+    setFormValidUntil(validUntil);
+    const initialLines = [defaultLine()];
+    setFormLines(initialLines);
+    setFormBaseline({ clientId: '', subject: '', validUntil, lines: initialLines });
     setFormOpen(true);
   }
 
@@ -228,8 +254,18 @@ export default function Quotes() {
         ? lines.map(l => ({ designation: l.designation, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice, costPrice: l.costPrice ?? 0 }))
         : [defaultLine()]
     );
+    // Defer baseline capture — lines may arrive asynchronously via quoteDetail.
+    setFormBaseline(null);
     setFormOpen(true);
   }
+
+  // Once quoteDetail has been hydrated in edit mode, snapshot the current values
+  // so the dirty-form guard can compare against them.
+  useEffect(() => {
+    if (formOpen && editingQuote && formBaseline === null) {
+      setFormBaseline(formValuesForGuard);
+    }
+  }, [formOpen, editingQuote, formBaseline, formValuesForGuard]);
 
   function updateLine(idx: number, field: keyof QuoteLineForm, value: string | number) {
     setFormLines(prev => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l));
@@ -268,8 +304,7 @@ export default function Quotes() {
       const scope = selectedCompany === 'GROUP' ? formCompany : undefined;
       await createMutation.mutateAsync({ data: payload, companyScope: scope });
     }
-    setFormOpen(false);
-    setEditingQuote(null);
+    closeForm();
   }
 
   const listColumns: Column<Quote>[] = [
@@ -422,6 +457,14 @@ export default function Quotes() {
                   }}
                 >
                   <Save className="h-3 w-3" /> Modèle
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1"
+                  onClick={() => setPdfPreviewOpen(true)}
+                >
+                  <Eye className="h-3 w-3" /> Aperçu
                 </Button>
                 <Button
                   size="sm"
@@ -707,7 +750,7 @@ export default function Quotes() {
       </Sheet>
 
       {/* Create / Edit Form Drawer */}
-      <Sheet open={formOpen} onOpenChange={(open) => { if (!open) { setFormOpen(false); setEditingQuote(null); } }}>
+      <Sheet open={formOpen} onOpenChange={(open) => { if (!open) guardCloseForm(closeForm); }}>
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader className="pb-4">
             <SheetTitle>{editingQuote ? `Modifier ${editingQuote.reference}` : 'Nouveau devis'}</SheetTitle>
@@ -866,7 +909,7 @@ export default function Quotes() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => { setFormOpen(false); setEditingQuote(null); }}
+                onClick={() => guardCloseForm(closeForm)}
               >
                 Annuler
               </Button>
@@ -1056,6 +1099,23 @@ export default function Quotes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PDF preview */}
+      <PdfPreviewDialog
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        title={selectedQuote ? `Aperçu · Devis ${selectedQuote.reference}` : 'Aperçu'}
+        fetchBlobUrl={async () => {
+          if (!selectedQuote) throw new Error('Aucun devis sélectionné');
+          const { quotesApi } = await import('@/services/api/quotes.api');
+          return quotesApi.previewPdf(selectedQuote.id);
+        }}
+        onDownload={async () => {
+          if (!selectedQuote) return;
+          const { quotesApi } = await import('@/services/api/quotes.api');
+          await quotesApi.downloadPdf(selectedQuote.id);
+        }}
+      />
     </div>
   );
 }
