@@ -1,11 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
+// `lovable-tagger` is only used in Lovable's hosted dev environment.
+// Load it lazily so production / CI builds don't fail when the package
+// isn't installed (it isn't listed as a required dependency).
+async function loadLovableTagger() {
+  try {
+    const mod = await import("lovable-tagger");
+    return mod.componentTagger();
+  } catch {
+    return null;
+  }
+}
+
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(async ({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
@@ -21,7 +32,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === "development" && componentTagger(),
+    mode === "development" ? await loadLovableTagger() : null,
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {

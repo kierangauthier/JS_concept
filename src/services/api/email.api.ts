@@ -1,4 +1,4 @@
-import { api } from './client';
+import { http } from './http';
 
 export interface SendEmailPayload {
   entityType: 'quote' | 'invoice';
@@ -20,9 +20,9 @@ export interface EmailLog {
 }
 
 export const emailApi = {
-  send: (payload: SendEmailPayload) =>
-    api.post('/email/send', payload).then(r => r.data),
+  send: (payload: SendEmailPayload): Promise<{ sent: boolean }> =>
+    http.post<{ sent: boolean }>('/email/send', payload),
 
   getLogs: (entityType: string, entityId: string): Promise<EmailLog[]> =>
-    api.get('/email/logs', { params: { entityType, entityId } }).then(r => r.data),
+    http.get<EmailLog[]>(`/email/logs?entityType=${encodeURIComponent(entityType)}&entityId=${encodeURIComponent(entityId)}`),
 };

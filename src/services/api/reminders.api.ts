@@ -1,4 +1,4 @@
-import { api } from './client';
+import { http } from './http';
 
 export interface ReminderRule {
   id: string;
@@ -29,22 +29,24 @@ export interface CreateReminderRulePayload {
   isActive?: boolean;
 }
 
+type RunResult = { processed: boolean; results: Array<{ companyId: string; sent: number; errors: string[] }> };
+
 export const remindersApi = {
   getRules: (): Promise<ReminderRule[]> =>
-    api.get('/reminders/rules').then(r => r.data),
+    http.get<ReminderRule[]>('/reminders/rules'),
 
   createRule: (data: CreateReminderRulePayload): Promise<ReminderRule> =>
-    api.post('/reminders/rules', data).then(r => r.data),
+    http.post<ReminderRule>('/reminders/rules', data),
 
   updateRule: (id: string, data: Partial<CreateReminderRulePayload>): Promise<ReminderRule> =>
-    api.patch(`/reminders/rules/${id}`, data).then(r => r.data),
+    http.patch<ReminderRule>(`/reminders/rules/${id}`, data),
 
   deleteRule: (id: string): Promise<void> =>
-    api.delete(`/reminders/rules/${id}`).then(r => r.data),
+    http.delete<void>(`/reminders/rules/${id}`),
 
   getLogsByInvoice: (invoiceId: string): Promise<ReminderLog[]> =>
-    api.get(`/reminders/invoices/${invoiceId}/logs`).then(r => r.data),
+    http.get<ReminderLog[]>(`/reminders/invoices/${invoiceId}/logs`),
 
-  runManual: (): Promise<{ processed: boolean; results: Array<{ companyId: string; sent: number; errors: string[] }> }> =>
-    api.post('/reminders/run').then(r => r.data),
+  runManual: (): Promise<RunResult> =>
+    http.post<RunResult>('/reminders/run'),
 };

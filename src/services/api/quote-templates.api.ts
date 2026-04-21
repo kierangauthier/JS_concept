@@ -1,4 +1,4 @@
-import { api } from './client';
+import { http } from './http';
 
 export interface QuoteTemplateLine {
   id: string;
@@ -36,14 +36,14 @@ export interface CreateQuoteFromTemplatePayload {
 
 export const quoteTemplatesApi = {
   getAll: (): Promise<QuoteTemplate[]> =>
-    api.get('/quote-templates').then(r => r.data),
+    http.get<QuoteTemplate[]>('/quote-templates'),
 
   createFromQuote: (data: CreateFromQuotePayload): Promise<QuoteTemplate> =>
-    api.post('/quote-templates', data).then(r => r.data),
+    http.post<QuoteTemplate>('/quote-templates', data),
 
   createQuoteFromTemplate: (templateId: string, data: CreateQuoteFromTemplatePayload): Promise<any> =>
-    api.post(`/quote-templates/${templateId}/create-quote`, data).then(r => r.data),
+    http.post(`/quote-templates/${templateId}/create-quote`, data),
 
   remove: (id: string): Promise<void> =>
-    api.delete(`/quote-templates/${id}`).then(r => r.data),
+    http.delete<void>(`/quote-templates/${id}`),
 };

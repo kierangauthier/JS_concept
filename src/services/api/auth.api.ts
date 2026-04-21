@@ -23,4 +23,12 @@ export const authApi = {
   },
 
   me: (): Promise<User> => http.get<User>('/me'),
+
+  /** I6 — request a reset link. Always resolves, even for unknown addresses (anti-enumeration). */
+  forgotPassword: (email: string): Promise<{ sent: boolean }> =>
+    http.post<{ sent: boolean }>('/auth/forgot-password', { email }),
+
+  /** I6 — redeem a reset token and set a new password. */
+  resetPassword: (token: string, password: string): Promise<{ reset: boolean }> =>
+    http.post<{ reset: boolean }>('/auth/reset-password', { token, password }),
 };

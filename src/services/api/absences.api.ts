@@ -1,4 +1,4 @@
-import { api } from './client';
+import { http } from './http';
 
 export interface AbsenceType {
   id: string;
@@ -12,6 +12,7 @@ export interface Absence {
   endDate: string;
   status: 'pending' | 'approved' | 'rejected';
   reason: string;
+  rejectionReason?: string | null;
   typeId: string;
   typeLabel: string;
   userId: string;
@@ -29,23 +30,23 @@ export interface CreateAbsencePayload {
 
 export const absencesApi = {
   getAll: (status?: string): Promise<Absence[]> =>
-    api.get('/absences', { params: status ? { status } : {} }).then(r => r.data),
+    http.get<Absence[]>(status ? `/absences?status=${encodeURIComponent(status)}` : '/absences'),
 
   create: (data: CreateAbsencePayload): Promise<Absence> =>
-    api.post('/absences', data).then(r => r.data),
+    http.post<Absence>('/absences', data),
 
   approve: (id: string): Promise<Absence> =>
-    api.post(`/absences/${id}/approve`).then(r => r.data),
+    http.post<Absence>(`/absences/${id}/approve`),
 
-  reject: (id: string): Promise<Absence> =>
-    api.post(`/absences/${id}/reject`).then(r => r.data),
+  reject: (id: string, reason?: string): Promise<Absence> =>
+    http.post<Absence>(`/absences/${id}/reject`, reason ? { reason } : undefined),
 
   remove: (id: string): Promise<void> =>
-    api.delete(`/absences/${id}`).then(r => r.data),
+    http.delete<void>(`/absences/${id}`),
 
   getTypes: (): Promise<AbsenceType[]> =>
-    api.get('/absences/types').then(r => r.data),
+    http.get<AbsenceType[]>('/absences/types'),
 
   createType: (label: string): Promise<AbsenceType> =>
-    api.post('/absences/types', { label }).then(r => r.data),
+    http.post<AbsenceType>('/absences/types', { label }),
 };

@@ -178,9 +178,9 @@ export const mockInvoices: Invoice[] = [
 ];
 
 export const mockTimeEntries: TimeEntry[] = [
-  { id: 't1', userId: 'u3', userName: 'Karim Benali', jobId: 'j3', jobRef: 'CHT-ASP-2024-003', date: '2024-07-15', hours: 8, description: 'Pose panneaux directionnels section A', company: 'ASP' },
-  { id: 't2', userId: 'u3', userName: 'Karim Benali', jobId: 'j3', jobRef: 'CHT-ASP-2024-003', date: '2024-07-16', hours: 7.5, description: 'Pose panneaux directionnels section B', company: 'ASP' },
-  { id: 't3', userId: 'u6', userName: 'Léa Moreau', jobId: 'j5', jobRef: 'CHT-JS-2024-002', date: '2024-07-15', hours: 6, description: 'Installation bancs et corbeilles', company: 'JS' },
-  { id: 't4', userId: 'u6', userName: 'Léa Moreau', jobId: 'j9', jobRef: 'CHT-JS-2024-004', date: '2024-07-16', hours: 8, description: 'Pose bornes anti-stationnement', company: 'JS' },
-  { id: 't5', userId: 'u3', userName: 'Karim Benali', jobId: 'j12', jobRef: 'CHT-ASP-2024-007', date: '2024-07-17', hours: 8, description: 'Remplacement signalisation non conforme', company: 'ASP' },
+  { id: 't1', userId: 'u3', userName: 'Karim Benali', jobId: 'j3', jobRef: 'CHT-ASP-2024-003', date: '2024-07-15', hours: 8, description: 'Pose panneaux directionnels section A', status: 'approved', company: 'ASP' },
+  { id: 't2', userId: 'u3', userName: 'Karim Benali', jobId: 'j3', jobRef: 'CHT-ASP-2024-003', date: '2024-07-16', hours: 7.5, description: 'Pose panneaux directionnels section B', status: 'approved', company: 'ASP' },
+  { id: 't3', userId: 'u6', userName: 'Léa Moreau', jobId: 'j5', jobRef: 'CHT-JS-2024-002', date: '2024-07-15', hours: 6, description: 'Installation bancs et corbeilles', status: 'submitted', company: 'JS' },
+  { id: 't4', userId: 'u6', userName: 'Léa Moreau', jobId: 'j9', jobRef: 'CHT-JS-2024-004', date: '2024-07-16', hours: 8, description: 'Pose bornes anti-stationnement', status: 'draft', company: 'JS' },
+  { id: 't5', userId: 'u3', userName: 'Karim Benali', jobId: 'j12', jobRef: 'CHT-ASP-2024-007', date: '2024-07-17', hours: 8, description: 'Remplacement signalisation non conforme', status: 'approved', company: 'ASP' },
 ];

@@ -44,6 +44,9 @@ export const timeEntriesApi = {
   approveBatch: (ids: string[]): Promise<{ approved: number }> =>
     http.post('/time-entries/approve-batch', { ids }),
 
-  reject: (id: string): Promise<TimeEntry> =>
-    http.post<TimeEntry>(`/time-entries/${id}/reject`),
+  reject: (id: string, reason?: string): Promise<TimeEntry> =>
+    http.post<TimeEntry>(`/time-entries/${id}/reject`, reason ? { reason } : undefined),
+
+  remove: (id: string): Promise<void> =>
+    http.delete<void>(`/time-entries/${id}`),
 };

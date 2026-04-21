@@ -1,4 +1,4 @@
-import { api } from './client';
+import { http } from './http';
 
 export interface HoursReportRow {
   id: string;
@@ -19,7 +19,7 @@ export interface HoursReport {
 
 export const reportsApi = {
   getHoursReport: (weekOf: string, groupBy: 'user' | 'job'): Promise<HoursReport> =>
-    api.get('/reports/hours', { params: { weekOf, groupBy } }).then(r => r.data),
+    http.get<HoursReport>(`/reports/hours?weekOf=${encodeURIComponent(weekOf)}&groupBy=${groupBy}`),
 
   exportHoursCsv: async (weekOf: string, groupBy: 'user' | 'job'): Promise<void> => {
     const tokens = JSON.parse(localStorage.getItem('cm_tokens') ?? '{}');

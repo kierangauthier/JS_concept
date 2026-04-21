@@ -1,4 +1,5 @@
 import { http } from './http';
+import type { Company } from '@/types';
 
 export interface CatalogCategory {
   id: string;
@@ -17,7 +18,7 @@ export interface CatalogProduct {
   isActive: boolean;
   categoryId: string | null;
   categoryName: string | null;
-  company: string;
+  company: Company;
 }
 
 export interface CreateProductPayload {

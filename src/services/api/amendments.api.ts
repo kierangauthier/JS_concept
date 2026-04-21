@@ -1,4 +1,4 @@
-import { api } from './client';
+import { http } from './http';
 
 export interface AmendmentLine {
   id: string;
@@ -30,20 +30,20 @@ export interface CreateAmendmentPayload {
 
 export const amendmentsApi = {
   getByQuote: (quoteId: string): Promise<Amendment[]> =>
-    api.get(`/quotes/${quoteId}/amendments`).then(r => r.data),
+    http.get<Amendment[]>(`/quotes/${quoteId}/amendments`),
 
   getOne: (id: string): Promise<Amendment> =>
-    api.get(`/amendments/${id}`).then(r => r.data),
+    http.get<Amendment>(`/amendments/${id}`),
 
   create: (quoteId: string, data: CreateAmendmentPayload): Promise<Amendment> =>
-    api.post(`/quotes/${quoteId}/amendments`, data).then(r => r.data),
+    http.post<Amendment>(`/quotes/${quoteId}/amendments`, data),
 
   update: (id: string, data: Partial<CreateAmendmentPayload>): Promise<Amendment> =>
-    api.patch(`/amendments/${id}`, data).then(r => r.data),
+    http.patch<Amendment>(`/amendments/${id}`, data),
 
   updateStatus: (id: string, status: string): Promise<Amendment> =>
-    api.patch(`/amendments/${id}/status`, { status }).then(r => r.data),
+    http.patch<Amendment>(`/amendments/${id}/status`, { status }),
 
   remove: (id: string): Promise<void> =>
-    api.delete(`/amendments/${id}`).then(r => r.data),
+    http.delete<void>(`/amendments/${id}`),
 };

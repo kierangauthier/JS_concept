@@ -1,15 +1,26 @@
-import { ReactNode } from 'react';
+import { ReactNode, isValidElement } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
+  /**
+   * Either a simple `{ label, onClick }` that renders a primary CTA, or an arbitrary
+   * ReactNode for pages that need several buttons / custom toolbars.
+   */
+  action?: { label: string; onClick: () => void } | ReactNode;
   children?: ReactNode;
+}
+
+function isActionObject(value: unknown): value is { label: string; onClick: () => void } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !isValidElement(value) &&
+    'label' in value &&
+    'onClick' in value
+  );
 }
 
 export function PageHeader({ title, subtitle, action, children }: PageHeaderProps) {
@@ -21,11 +32,13 @@ export function PageHeader({ title, subtitle, action, children }: PageHeaderProp
       </div>
       <div className="flex items-center gap-2">
         {children}
-        {action && (
+        {isActionObject(action) ? (
           <Button onClick={action.onClick} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
             <Plus className="mr-1 h-4 w-4" />
             {action.label}
           </Button>
+        ) : (
+          action ?? null
         )}
       </div>
     </div>

@@ -3,10 +3,10 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   TrendingUp, FileText, Receipt, AlertTriangle,
-  Camera, ShoppingCart, CheckCircle2, ArrowRight
+  Camera, ShoppingCart, CheckCircle2, ArrowRight, Clock,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useQuotes, useJobs, useInvoices, usePurchases, useTimeEntries, useWorkshopItems, useDashboardMargins, useExpiringHrDocs } from '@/services/api/hooks';
+import { useQuotes, useJobs, useInvoices, usePurchases, useTimeEntries, useWorkshopItems, useDashboardMargins } from '@/services/api/hooks';
 import { CashflowWidget } from '@/components/dashboard/CashflowWidget';
 import { AiBriefingWidget } from '@/components/ai';
 import AiProactiveAlerts from '@/components/ai/AiProactiveAlerts';
@@ -31,7 +31,9 @@ export default function Dashboard() {
   const { data: apiTimeEntries, isLoading: loadingTime } = useTimeEntries();
   const { data: apiWorkshopItems, isLoading: loadingWorkshop } = useWorkshopItems();
   const { data: dashboardMargins } = useDashboardMargins();
-  const { data: expiringDocs } = useExpiringHrDocs(30);
+  // Expiring HR docs widget: the hook was never exported, so we skip this alert category for now.
+  type ExpiringDoc = { id: string; userName: string; docType: string; expiresInDays: number };
+  const expiringDocs = undefined as unknown as ExpiringDoc[] | undefined;
 
   const isLoading = loadingQuotes || loadingJobs || loadingInvoices || loadingPurchases || loadingTime || loadingWorkshop;
 
@@ -160,7 +162,7 @@ export default function Dashboard() {
       type: 'warning',
       icon: AlertTriangle,
       title: `${expiringDocs.length} document(s) RH expirent dans 30 jours`,
-      detail: expiringDocs.slice(0, 3).map(d => `${d.userName} — ${d.label}`).join(', '),
+      detail: expiringDocs.slice(0, 3).map((d: { userName: string; docType: string }) => `${d.userName} — ${d.docType}`).join(', '),
       link: '/hr',
       linkLabel: 'Voir RH',
     });

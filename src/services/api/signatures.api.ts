@@ -1,4 +1,4 @@
-import { api } from './client';
+import { http } from './http';
 
 export interface SignatureResult {
   id: string;
@@ -19,8 +19,8 @@ export interface SignatureView {
 
 export const signaturesApi = {
   create: (data: { jobId: string; interventionDate: string; signatoryName: string }): Promise<SignatureResult> =>
-    api.post('/signatures', data).then(r => r.data),
+    http.post<SignatureResult>('/signatures', data),
 
   getByJob: (jobId: string): Promise<SignatureView[]> =>
-    api.get('/signatures', { params: { jobId } }).then(r => r.data),
+    http.get<SignatureView[]>(`/signatures?jobId=${encodeURIComponent(jobId)}`),
 };
