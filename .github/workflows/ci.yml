@@ -36,8 +36,35 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
-      - name: Unit tests
+      - name: Unit tests (frontend + pure backend libs)
         run: npm test
 
       - name: Build
         run: npm run build
+
+  backend:
+    name: Backend (typecheck · prisma generate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Type check (strict build config)
+        # `tsconfig.build.json` mirrors what `nest build` compiles: production
+        # code only, no seeds / tests / prisma scripts. 0 errors expected.
+        run: npx tsc --noEmit -p tsconfig.build.json

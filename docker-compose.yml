@@ -2,15 +2,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: concept_manager
-      POSTGRES_USER: concept
-      POSTGRES_PASSWORD: concept_dev
+      POSTGRES_DB: ${POSTGRES_DB:-concept_manager}
+      POSTGRES_USER: ${POSTGRES_USER:-concept}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U concept -d concept_manager"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-concept} -d ${POSTGRES_DB:-concept_manager}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -19,8 +19,8 @@ services:
     image: minio/minio:RELEASE.2024-11-07T00-52-20Z
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -34,17 +34,20 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://concept:concept_dev@postgres:5432/concept_manager
-      JWT_SECRET: dev-secret-change-in-production-min-32-chars-long
-      JWT_EXPIRY: 15m
-      REFRESH_TOKEN_EXPIRY_DAYS: 7
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-concept}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-concept_manager}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (openssl rand -base64 48)}
+      JWT_EXPIRY: ${JWT_EXPIRY:-15m}
+      REFRESH_TOKEN_EXPIRY_DAYS: ${REFRESH_TOKEN_EXPIRY_DAYS:-7}
+      INVOICE_HMAC_KEY: ${INVOICE_HMAC_KEY:?INVOICE_HMAC_KEY must be set in .env (openssl rand -base64 48)}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS must be set in .env}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET: concept-files
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-concept-files}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       PORT: 3000
-      NODE_ENV: development
     depends_on:
       postgres:
         condition: service_healthy

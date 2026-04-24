@@ -1,0 +1,63 @@
+version: 2
+
+updates:
+  # Frontend (root package.json)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    groups:
+      react-query:
+        patterns: ["@tanstack/*"]
+      radix:
+        patterns: ["@radix-ui/*"]
+      lovable:
+        # The lovable tagger dependency is flagged as risk in the audit — we
+        # want Dependabot to keep it current but grouped so it is easy to
+        # spot in the PR list.
+        patterns: ["lovable-*"]
+    commit-message:
+      prefix: "deps(frontend)"
+
+  # Backend
+  - package-ecosystem: npm
+    directory: /api
+    schedule:
+      interval: monthly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    groups:
+      nestjs:
+        patterns: ["@nestjs/*"]
+      prisma:
+        patterns: ["prisma", "@prisma/*"]
+    commit-message:
+      prefix: "deps(backend)"
+
+  # GitHub Actions themselves
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+
+  # Docker base images
+  - package-ecosystem: docker
+    directory: /api
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "deps(docker)"
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "deps(docker)"
