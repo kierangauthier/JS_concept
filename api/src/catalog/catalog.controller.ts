@@ -1,13 +1,20 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, ForbiddenException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, ForbiddenException, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CatalogService } from './catalog.service';
 import { CreateCategoryDto, CreateProductDto, UpdateProductDto } from './dto/create-catalog.dto';
+import { AntivirusService } from '../antivirus/antivirus.service';
+import { assertMime } from '../common/security/file-type';
+
+const MAX_CATALOG_BYTES = 5 * 1024 * 1024; // 5 MB
 
 @Controller('api/catalog')
 @Roles('admin', 'conducteur')
 export class CatalogController {
-  constructor(private catalogService: CatalogService) {}
+  constructor(
+    private catalogService: CatalogService,
+    private antivirus: AntivirusService,
+  ) {}
 
   // ─── Categories ────────────────────────────────────────
 
@@ -60,7 +67,15 @@ export class CatalogController {
   @UseInterceptors(FileInterceptor('file'))
   async importCsv(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
     if (!req.companyId) throw new ForbiddenException('Cannot import under GROUP scope');
-    if (!file) throw new ForbiddenException('No file provided');
+    if (!file) throw new BadRequestException('No file provided');
+
+    assertMime(file.buffer, {
+      accept: ['text/csv', 'text/plain'],
+      maxBytes: MAX_CATALOG_BYTES,
+      filename: file.originalname,
+    });
+    await this.antivirus.scanBuffer(file.buffer, file.originalname);
+
     const content = file.buffer.toString('utf-8');
     return this.catalogService.importCsv(content, req.companyId);
   }

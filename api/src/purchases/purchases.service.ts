@@ -59,11 +59,12 @@ export class PurchasesService {
     const year = new Date().getFullYear();
 
     const po = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('purchase-seq:' || ${companyId}))`;
+
       const result = await tx.$queryRaw<[{ next_val: bigint }]>`
         SELECT COALESCE(MAX(CAST(SUBSTRING(reference FROM '[0-9]+$') AS INTEGER)), 0) + 1 as next_val
         FROM "purchase_orders"
         WHERE "companyId" = ${companyId}
-        FOR UPDATE
       `;
       const nextVal = Number(result[0].next_val);
       const ref = `CMD-${company!.code}-${year}-${String(nextVal).padStart(3, '0')}`;

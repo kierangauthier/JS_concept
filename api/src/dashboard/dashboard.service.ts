@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface CashflowProjection {
+export interface CashflowProjection {
   period: '30j' | '60j' | '90j';
   expectedIn: number;
   expectedOut: number;
@@ -9,7 +9,7 @@ interface CashflowProjection {
   netPosition: number;
 }
 
-interface ExpectedInflow {
+export interface ExpectedInflow {
   invoiceRef: string;
   clientName: string;
   amount: number;
@@ -20,7 +20,7 @@ interface ExpectedInflow {
   isImported: boolean;
 }
 
-interface ExpectedOutflow {
+export interface ExpectedOutflow {
   purchaseRef: string;
   supplierName: string;
   amount: number;
@@ -28,7 +28,7 @@ interface ExpectedOutflow {
   jobRef: string | null;
 }
 
-interface EstimatedBilling {
+export interface EstimatedBilling {
   jobRef: string;
   title: string;
   clientName: string;

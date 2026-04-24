@@ -114,11 +114,13 @@ export class JobsService {
     const year = new Date().getFullYear();
 
     const job = await this.prisma.$transaction(async (tx) => {
+      // Advisory lock per company — Postgres disallows FOR UPDATE on aggregates.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('job-seq:' || ${companyId}))`;
+
       const result = await tx.$queryRaw<[{ next_val: bigint }]>`
         SELECT COALESCE(MAX(CAST(SUBSTRING(reference FROM '[0-9]+$') AS INTEGER)), 0) + 1 as next_val
         FROM "jobs"
         WHERE "companyId" = ${companyId}
-        FOR UPDATE
       `;
       const nextVal = Number(result[0].next_val);
       const ref = `CHT-${company!.code}-${year}-${String(nextVal).padStart(3, '0')}`;

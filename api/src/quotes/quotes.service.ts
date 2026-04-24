@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -22,6 +23,8 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 
 @Injectable()
 export class QuotesService {
+  private readonly logger = new Logger(QuotesService.name);
+
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
@@ -33,6 +36,7 @@ export class QuotesService {
       reference: q.reference,
       clientId: q.clientId,
       clientName: q.client?.name ?? '',
+      clientAddress: q.client?.address ?? '',
       subject: q.subject,
       amount: Number(q.amount),
       status: q.status,
@@ -52,7 +56,7 @@ export class QuotesService {
         take: pagination.limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          client: { select: { name: true } },
+          client: { select: { name: true, address: true } },
           company: { select: { code: true } },
         },
       }),
@@ -74,7 +78,7 @@ export class QuotesService {
     const quote = await this.prisma.quote.findFirst({
       where,
       include: {
-        client: { select: { name: true } },
+        client: { select: { name: true, address: true } },
         company: { select: { code: true } },
         lines: { orderBy: { sortOrder: 'asc' } },
       },
@@ -107,11 +111,15 @@ export class QuotesService {
       : dto.amount ?? 0;
 
     const quote = await this.prisma.$transaction(async (tx) => {
+      // See invoices.service.ts for the rationale: Postgres disallows
+      // FOR UPDATE on an aggregate; we serialise via a transaction-scoped
+      // advisory lock keyed by companyId.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('quote-seq:' || ${companyId}))`;
+
       const result = await tx.$queryRaw<[{ next_val: bigint }]>`
         SELECT COALESCE(MAX(CAST(SUBSTRING(reference FROM '[0-9]+$') AS INTEGER)), 0) + 1 as next_val
         FROM "quotes"
         WHERE "companyId" = ${companyId}
-        FOR UPDATE
       `;
       const nextVal = Number(result[0].next_val);
       const ref = `DEV-${company!.code}-${year}-${String(nextVal).padStart(3, '0')}`;
@@ -276,11 +284,12 @@ export class QuotesService {
     const year = new Date().getFullYear();
 
     const quote = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('quote-seq:' || ${original.companyId}))`;
+
       const result = await tx.$queryRaw<[{ next_val: bigint }]>`
         SELECT COALESCE(MAX(CAST(SUBSTRING(reference FROM '[0-9]+$') AS INTEGER)), 0) + 1 as next_val
         FROM "quotes"
         WHERE "companyId" = ${original.companyId}
-        FOR UPDATE
       `;
       const nextVal = Number(result[0].next_val);
       const ref = `DEV-${original.company.code}-${year}-${String(nextVal).padStart(3, '0')}`;
@@ -320,6 +329,7 @@ export class QuotesService {
     id: string,
     companyId: string | null,
     userId: string,
+    jobAddress?: string,
   ) {
     const where: any = { id };
     if (companyId) where.companyId = companyId;
@@ -338,11 +348,12 @@ export class QuotesService {
     const year = new Date().getFullYear();
 
     const job = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('job-seq:' || ${quote.companyId}))`;
+
       const result = await tx.$queryRaw<[{ next_val: bigint }]>`
         SELECT COALESCE(MAX(CAST(SUBSTRING(reference FROM '[0-9]+$') AS INTEGER)), 0) + 1 as next_val
         FROM "jobs"
         WHERE "companyId" = ${quote.companyId}
-        FOR UPDATE
       `;
       const nextVal = Number(result[0].next_val);
       const jobRef = `CHT-${quote.company.code}-${year}-${String(nextVal).padStart(3, '0')}`;
@@ -352,7 +363,7 @@ export class QuotesService {
           id: createId(),
           reference: jobRef,
           title: quote.subject,
-          address: quote.client.address,
+          address: jobAddress?.trim() || quote.client.address,
           status: 'planned',
           startDate: new Date(),
           quoteId: quote.id,
@@ -394,10 +405,10 @@ export class QuotesService {
     id: string,
     companyId: string | null,
     userId: string,
-    options: { createWorkshop?: boolean; createPurchases?: boolean },
+    options: { createWorkshop?: boolean; createPurchases?: boolean; jobAddress?: string },
   ) {
     // First convert to job (reuse existing logic)
-    const job = await this.convertToJob(id, companyId, userId);
+    const job = await this.convertToJob(id, companyId, userId, options.jobAddress);
 
     const quote = await this.prisma.quote.findFirst({
       where: { id },
@@ -420,10 +431,10 @@ export class QuotesService {
             data: {
               id: createId(),
               reference: `AT-${job.reference.replace('CHT-', '')}`,
-              description: line.designation,
-              quantity: Number(line.quantity),
-              status: 'pending',
-              priority: 'normal',
+              title: line.designation,
+              description: `Quantité : ${Number(line.quantity)}`,
+              status: 'bat_pending',
+              priority: 'medium',
               jobId: job.id,
               companyId: quote.companyId,
             },
@@ -434,32 +445,13 @@ export class QuotesService {
     }
 
     if (options.createPurchases) {
-      // Create purchase orders for lines that look like materials/purchases
-      const purchaseLines = quote.lines.filter(l => {
-        const isPurchase = l.designation.toLowerCase().match(
-          /fourniture|panneau|poteau|mat[eé]riel|achat|b[eé]ton|bitume/,
-        );
-        return isPurchase;
-      });
-      if (purchaseLines.length > 0) {
-        const totalAmount = purchaseLines.reduce(
-          (s, l) => s + Number(l.quantity) * Number(l.costPrice || l.unitPrice),
-          0,
-        );
-        const poRef = `CMD-${job.reference.replace('CHT-', '')}`;
-        const po = await this.prisma.purchaseOrder.create({
-          data: {
-            id: createId(),
-            reference: poRef,
-            description: `Achats pour ${job.reference}`,
-            amount: totalAmount,
-            status: 'draft',
-            jobId: job.id,
-            companyId: quote.companyId,
-          },
-        });
-        purchases.push(po);
-      }
+      // Disabled until `supplierId` and `orderedAt` are propagated by the caller —
+      // `PurchaseOrder` requires both (see schema.prisma). The previous
+      // implementation was type-unsafe and crashed at runtime (missing supplierId,
+      // unknown `description` column). Surfaced here so the code is visible but inert.
+      this.logger.warn(
+        `[Quotes] createPurchases requested for quote ${quote.reference} but is disabled: caller must pass supplierId + orderedAt.`,
+      );
     }
 
     return {

@@ -15,11 +15,18 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ImportService } from './import.service';
+import { AntivirusService } from '../antivirus/antivirus.service';
+import { assertMime } from '../common/security/file-type';
+
+const MAX_IMPORT_BYTES = 10 * 1024 * 1024; // 10 MB
 
 @Controller('api/import')
 @Roles('admin')
 export class ImportController {
-  constructor(private importService: ImportService) {}
+  constructor(
+    private importService: ImportService,
+    private antivirus: AntivirusService,
+  ) {}
 
   // ─── Download CSV template ─────────────────────────
 
@@ -62,6 +69,13 @@ export class ImportController {
     if (!validTypes.includes(type)) {
       throw new BadRequestException(`Type invalide: ${type}`);
     }
+
+    assertMime(file.buffer, {
+      accept: ['text/csv', 'text/plain'],
+      maxBytes: MAX_IMPORT_BYTES,
+      filename: file.originalname,
+    });
+    await this.antivirus.scanBuffer(file.buffer, file.originalname);
 
     return this.importService.preview(file.buffer, type, req.companyId);
   }

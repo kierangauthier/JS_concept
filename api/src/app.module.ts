@@ -1,8 +1,12 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
+import { AntivirusModule } from './antivirus/antivirus.module';
+import { QueueModule } from './common/queue/queue.module';
 import { AuditModule } from './audit/audit.module';
+import { RetentionModule } from './retention/retention.module';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { QuotesModule } from './quotes/quotes.module';
@@ -29,6 +33,9 @@ import { ReportsModule } from './reports/reports.module';
 import { ImportModule } from './import/import.module';
 import { ExportModule } from './export/export.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { AiModule } from './ai/ai.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
+import { GdprModule } from './gdpr/gdpr.module';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -37,9 +44,18 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    ThrottlerModule.forRoot([
+      // Default bucket for authenticated traffic
+      { name: 'default', ttl: 60_000, limit: 100 },
+      // Hardened bucket for unauthenticated auth endpoints (login, refresh, forgot, reset).
+      // 5 attempts per 5 minutes per IP mitigates credential stuffing and brute force.
+      { name: 'auth', ttl: 300_000, limit: 5 },
+    ]),
     PrismaModule,
+    AntivirusModule,
+    QueueModule,
     AuditModule,
+    RetentionModule,
     AuthModule,
     ClientsModule,
     QuotesModule,
@@ -66,6 +82,9 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     ImportModule,
     ExportModule,
     DashboardModule,
+    AiModule,
+    KnowledgeModule,
+    GdprModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -78,4 +97,8 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     { provide: APP_INTERCEPTOR, useClass: AuditLogInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}

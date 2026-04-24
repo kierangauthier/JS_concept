@@ -58,14 +58,19 @@ export class QuotesController {
   }
 
   @Post(':id/convert-to-job')
-  convertToJob(@Param('id') id: string, @Req() req: any, @CurrentUser('id') userId: string) {
-    return this.quotesService.convertToJob(id, req.companyId, userId);
+  convertToJob(
+    @Param('id') id: string,
+    @Body() body: { jobAddress?: string },
+    @Req() req: any,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.quotesService.convertToJob(id, req.companyId, userId, body?.jobAddress);
   }
 
   @Post(':id/convert-full')
   convertFull(
     @Param('id') id: string,
-    @Body() body: { createWorkshop?: boolean; createPurchases?: boolean },
+    @Body() body: { createWorkshop?: boolean; createPurchases?: boolean; jobAddress?: string },
     @Req() req: any,
     @CurrentUser('id') userId: string,
   ) {

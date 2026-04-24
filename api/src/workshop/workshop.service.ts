@@ -59,11 +59,12 @@ export class WorkshopService {
     const company = await this.prisma.company.findUnique({ where: { id: companyId } });
 
     const item = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('workshop-seq:' || ${companyId}))`;
+
       const result = await tx.$queryRaw<[{ next_val: bigint }]>`
         SELECT COALESCE(MAX(CAST(SUBSTRING(reference FROM '[0-9]+$') AS INTEGER)), 0) + 1 as next_val
         FROM "workshop_items"
         WHERE "companyId" = ${companyId}
-        FOR UPDATE
       `;
       const nextVal = Number(result[0].next_val);
       const ref = `ATL-${company!.code}-${String(nextVal).padStart(3, '0')}`;

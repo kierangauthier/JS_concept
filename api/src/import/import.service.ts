@@ -26,7 +26,7 @@ interface SoftMatch {
   suggestedAction: 'merge' | 'skip';
 }
 
-interface PreviewResult {
+export interface PreviewResult {
   fileKey: string;
   checksum: string;
   valid: Record<string, string>[];
@@ -35,13 +35,13 @@ interface PreviewResult {
   total: number;
 }
 
-interface DuplicateAction {
+export interface DuplicateAction {
   line: number;
   action: 'merge' | 'skip' | 'create';
   mergePolicy?: 'safe' | 'overwrite';
 }
 
-interface ExecuteResult {
+export interface ExecuteResult {
   imported: number;
   merged: number;
   skipped: number;

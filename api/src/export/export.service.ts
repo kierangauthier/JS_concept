@@ -85,7 +85,9 @@ export class ExportService {
     journal: 'VE' | 'AC' | 'ALL',
   ): Promise<string> {
     const settings = await this.getSettings(companyId);
-    const vatRates = settings.vatRates as VatRateConfig[];
+    // Prisma types the JSON column as JsonValue; we know the shape (see
+    // VatRateConfig) and the write path enforces it.
+    const vatRates = settings.vatRates as unknown as VatRateConfig[];
     const lines: FecLine[] = [];
     let ecritureNum = 1;
 
@@ -408,9 +410,14 @@ export class ExportService {
     billingDelayCompleted: number;
   }>) {
     const settings = await this.getSettings(companyId);
+    // vatRates is stored as JSON (Prisma InputJsonValue) — coerce once at the boundary.
+    const { vatRates, ...rest } = data;
     return this.prisma.accountingSettings.update({
       where: { id: settings.id },
-      data,
+      data: {
+        ...rest,
+        ...(vatRates !== undefined ? { vatRates: vatRates as unknown as any } : {}),
+      },
     });
   }
 }
