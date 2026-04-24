@@ -1,0 +1,13 @@
+- [Acreed équipe et stratégie](acreed_context.md) — 2 pilotes de Claude (Kieran + collègue) + président mi-temps, runway chômage 8-10 mois
+- [Méthode de travail vibe code](workflow_and_skills.md) — ils ne codent PAS, ils pilotent Claude. Adapter mes conseils en conséquence.
+- [ConceptManager vs Ostara](two_products.md) — ConceptManager = ERP BTP local, source à disséquer ; Ostara = app-builder interne sur VM, construit ce week-end
+- [Positionnement commercial](positioning.md) — ERP modulaire TPE/PME tous secteurs, IA native, Ostara outil interne
+- [Pricing cible](pricing.md) — 3500 € + 249 €/mois pour JS + ASP, 50/50 signature/prod
+- [Plan transition](transition_plan.md) — JS signé M+1, briques extraites M+2, 1er client Ostara M+3
+- [Contraintes techniques](tech_constraints.md) — pas de Git remote Ostara, pas de doc briques, divergence V1-V6
+- [Infrastructure serveur](infrastructure.md) — VM Azure D8s v4 (Paris) chez BNC, 32 Go / 8 vCPU, 47 containers à trier, backups en chantier
+- [Domaines Acreed](domains.md) — 2 entités, 2 domaines vivants : Consulting=acreedconsulting.com (astreos+site) / IA Solutions=acreediasolutions.com (tout le reste)
+- [Protection des secrets](feedback_secrets.md) — réflexe anti-fuite : détecter, signaler, révoquer, recréer, ne jamais utiliser la valeur compromise
+- [Gouvernance VM multi-admins](governance_multi_admin.md) — kieran + tdufr + président tous admins via groupe acreed-dev, /srv/dev/ racine projets partagée — Phase A à exécuter après Phase 0 runbook
+- [Runbook checkpoints : Teams notifie, session débloque](feedback_runbook_checkpoints.md) — teams-alert est write-only ; Kieran répond les GO dans la session Claude-VM, pas dans Teams
+- [Document de référence complet](../MEMOIRE-STRATEGIQUE.md) — fichier vivant à la racine du projet
