@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { BCRYPT_ROUNDS } from '../common/security/password.policy';
 
 @Injectable()
 export class AuthService {
@@ -37,7 +38,28 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Transparent hash upgrade: if an existing hash uses a cost lower than current policy,
+    // rehash at login so the installed base migrates without user action.
+    try {
+      const currentCost = this.extractBcryptCost(user.passwordHash);
+      if (currentCost !== null && currentCost < BCRYPT_ROUNDS) {
+        const newHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { passwordHash: newHash },
+        });
+      }
+    } catch {
+      // Non-blocking: upgrade failure must never break login.
+    }
+
     return this.generateTokens(user);
+  }
+
+  private extractBcryptCost(hash: string): number | null {
+    // bcrypt hash format: $2b$<cost>$<salt+digest>
+    const match = /^\$2[aby]\$(\d{2})\$/.exec(hash);
+    return match ? parseInt(match[1], 10) : null;
   }
 
   async refresh(refreshToken: string) {

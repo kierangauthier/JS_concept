@@ -1,9 +1,10 @@
 import { IsString, IsEmail, IsOptional, IsEnum, MinLength } from 'class-validator';
+import { IsStrongPassword } from '../../common/validators/strong-password.decorator';
 
 export class CreateUserDto {
   @IsEmail() email: string;
   @IsString() @MinLength(2) name: string;
-  @IsString() @MinLength(6) password: string;
+  @IsStrongPassword() password: string;
   @IsEnum(['admin', 'conducteur', 'technicien', 'comptable']) role: string;
   @IsString() companyId: string;
 }

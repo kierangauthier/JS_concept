@@ -5,12 +5,13 @@ import { AuthService } from './auth.service';
 import { AuthController, MeController } from './auth.controller';
 import { UsersController } from './users.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { getJwtSecret } from '../common/security/env-guards';
 
 @Module({
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? undefined : 'dev-secret-change-in-production-min-32-chars'),
+      secret: getJwtSecret(),
       signOptions: { expiresIn: process.env.JWT_EXPIRY || '15m' },
     }),
   ],

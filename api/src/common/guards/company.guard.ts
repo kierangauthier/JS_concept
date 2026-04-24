@@ -13,9 +13,9 @@ import { PrismaService } from '../../prisma/prisma.service';
  * Attaches `req.companyId` (string | null) for use in services.
  *
  * Rules:
- * - GROUP → null (no filter) → only admin/conducteur allowed (gérant = conducteur level)
- * - ASP/JS → resolved to company DB id
- * - Non-admin users cannot access a company other than their own
+ * - GROUP → null (no filter) → admin only
+ * - ASP/JS → resolved to company DB id; admin may target any, others must match their own
+ * - No header → default to user's own companyId
  */
 @Injectable()
 export class CompanyGuard implements CanActivate {
@@ -42,37 +42,38 @@ export class CompanyGuard implements CanActivate {
       request.headers['x-company-id'] as string || ''
     ).toUpperCase();
 
-    // GROUP scope
-    if (headerValue === 'GROUP' || headerValue === '') {
-      if (!['admin', 'conducteur'].includes(user.role)) {
-        if (headerValue === 'GROUP') {
-          throw new ForbiddenException(
-            'GROUP scope is reserved for admin/gérant roles',
-          );
-        }
-        // No header → default to user's own company
-        request.companyId = user.companyId;
-        return true;
+    // Explicit GROUP scope — admin only.
+    if (headerValue === 'GROUP') {
+      if (user.role !== 'admin') {
+        throw new ForbiddenException(
+          'GROUP scope is reserved for admin role',
+        );
       }
-      // Admin/conducteur with GROUP or no header → no company filter
-      request.companyId = headerValue === 'GROUP' ? null : user.companyId;
+      request.companyId = null;
+      request.companyScope = 'GROUP';
       return true;
     }
 
-    // Specific company code (ASP or JS)
+    // No header → always default to user's own company, whatever the role.
+    if (headerValue === '') {
+      request.companyId = user.companyId;
+      request.companyScope = 'OWN';
+      return true;
+    }
+
+    // Specific company code (ASP / JS / …).
     const resolvedId = await this.resolveCompanyId(headerValue);
     if (!resolvedId) {
       throw new ForbiddenException(`Unknown company code: ${headerValue}`);
     }
 
-    // Non-admin/conducteur: must match own company
-    if (!['admin', 'conducteur'].includes(user.role)) {
-      if (resolvedId !== user.companyId) {
-        throw new ForbiddenException('Cannot access another company');
-      }
+    // Only admin may target a company other than their own.
+    if (resolvedId !== user.companyId && user.role !== 'admin') {
+      throw new ForbiddenException('Cannot access another company');
     }
 
     request.companyId = resolvedId;
+    request.companyScope = 'COMPANY';
     return true;
   }
 

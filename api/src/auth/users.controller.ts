@@ -4,6 +4,8 @@ import { AuditService } from '../audit/audit.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { assertStrongPassword, BCRYPT_ROUNDS } from '../common/security/password.policy';
+import type { AuthedRequest } from '../common/types/authed-request';
 import { createId } from '@paralleldrive/cuid2';
 import * as bcrypt from 'bcrypt';
 
@@ -16,7 +18,7 @@ export class UsersController {
   ) {}
 
   @Get()
-  async findAll(@Req() req: any) {
+  async findAll(@Req() req: AuthedRequest) {
     const where: any = {};
     if (req.companyId) where.companyId = req.companyId;
 
@@ -45,7 +47,9 @@ export class UsersController {
 
   @Post()
   @Roles('admin')
-  async create(@Body() dto: CreateUserDto, @Req() req: any, @CurrentUser('id') userId: string) {
+  async create(@Body() dto: CreateUserDto, @Req() req: AuthedRequest, @CurrentUser('id') userId: string) {
+    assertStrongPassword(dto.password);
+
     // Check for duplicate email
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Un utilisateur avec cet email existe déjà');
@@ -59,7 +63,12 @@ export class UsersController {
     if (!company) throw new NotFoundException('Entité introuvable');
     const resolvedCompanyId = company.id;
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    // A company-scoped admin cannot create users in another company.
+    if (req.companyId && resolvedCompanyId !== req.companyId) {
+      throw new ForbiddenException('Création hors de votre périmètre');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
     const user = await this.prisma.user.create({
       data: {
@@ -104,11 +113,17 @@ export class UsersController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @Req() req: any,
+    @Req() req: AuthedRequest,
     @CurrentUser('id') userId: string,
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Utilisateur introuvable');
+
+    // Cross-tenant guard: an admin scoped to a company cannot touch users of other companies.
+    // req.companyId === null only when scope is GROUP (admin on all companies).
+    if (req.companyId && existing.companyId !== req.companyId) {
+      throw new ForbiddenException('Utilisateur hors de votre périmètre');
+    }
 
     // If email is being changed, check for duplicates
     if (dto.email && dto.email !== existing.email) {
@@ -157,11 +172,15 @@ export class UsersController {
   @Roles('admin')
   async deactivate(
     @Param('id') id: string,
-    @Req() req: any,
+    @Req() req: AuthedRequest,
     @CurrentUser('id') userId: string,
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Utilisateur introuvable');
+
+    if (req.companyId && existing.companyId !== req.companyId) {
+      throw new ForbiddenException('Utilisateur hors de votre périmètre');
+    }
 
     // Prevent self-deactivation
     if (id === userId) throw new ForbiddenException('Impossible de désactiver votre propre compte');
@@ -189,16 +208,19 @@ export class UsersController {
   async resetPassword(
     @Param('id') id: string,
     @Body() body: { password: string },
+    @Req() req: AuthedRequest,
     @CurrentUser('id') userId: string,
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Utilisateur introuvable');
 
-    if (!body.password || body.password.length < 6) {
-      throw new ForbiddenException('Le mot de passe doit contenir au moins 6 caractères');
+    if (req.companyId && existing.companyId !== req.companyId) {
+      throw new ForbiddenException('Utilisateur hors de votre périmètre');
     }
 
-    const passwordHash = await bcrypt.hash(body.password, 10);
+    assertStrongPassword(body?.password);
+
+    const passwordHash = await bcrypt.hash(body.password, BCRYPT_ROUNDS);
     await this.prisma.user.update({
       where: { id },
       data: { passwordHash },
