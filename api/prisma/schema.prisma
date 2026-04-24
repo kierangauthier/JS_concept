@@ -19,6 +19,7 @@ enum UserRole {
   conducteur
   technicien
   comptable
+  collaborateur
 }
 
 enum ClientType {
@@ -100,6 +101,26 @@ model Company {
   code CompanyCode @unique
   name String
 
+  // Legal identifiers (required for French invoices — see V2 audit).
+  legalName            String?
+  legalForm            String?
+  siren                String?
+  siret                String?
+  vatNumber            String?
+  rcsCity              String?
+  shareCapital         Decimal? @db.Decimal(14, 2)
+  addressLine1         String?
+  addressLine2         String?
+  postalCode           String?
+  city                 String?
+  countryCode          String?  @default("FR")
+  iban                 String?
+  bic                  String?
+  paymentTerms         String?  // free-text clause printed on invoices
+  latePaymentRate      String?  // e.g. "3 × taux d'intérêt légal"
+  lateFeeFlat          Decimal? @db.Decimal(10, 2) @default(40)
+  legalRepresentative  String?
+
   users              User[]
   clients            Client[]
   quotes             Quote[]
@@ -124,6 +145,7 @@ model Company {
   reminderRules          ReminderRule[]
   reminderLogs           ReminderLog[]
   accountingSettings     AccountingSettings?
+  knowledgeChunks        KnowledgeChunk[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -182,11 +204,17 @@ model User {
   avatar       String?
   isActive     Boolean  @default(true)
 
+  // GDPR consent flags. `null` means "never asked" → feature is gated off.
+  aiProcessingConsentAt DateTime?
+  aiProcessingConsent   Boolean   @default(false)
+
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
 
-  refreshTokens   RefreshToken[]
-  jobAssignments  JobAssignment[]
+  refreshTokens        RefreshToken[]
+  passwordResetTokens  PasswordResetToken[]
+  consents             UserConsent[]
+  jobAssignments       JobAssignment[]
   timeEntries     TimeEntry[]
   planningSlots   PlanningSlot[]
   teamMemberships TeamMember[]
@@ -202,6 +230,56 @@ model User {
 
   @@index([companyId])
   @@map("users")
+}
+
+/// V5.5 — Granular, time-stamped consent history.
+/// The boolean flags on `User` (e.g. aiProcessingConsent) keep reflecting the
+/// CURRENT state for fast reads, but every change is recorded here with its
+/// timestamp, purpose and user-agent, so a data subject can prove what they
+/// accepted and when.
+model UserConsent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String   // 'ai_processing' | 'email_marketing' | 'location_tracking' | …
+  granted   Boolean  // true = opt-in, false = opt-out / revoke
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([purpose, createdAt])
+  @@map("user_consents")
+}
+
+model KnowledgeChunk {
+  id         String   @id
+  content    String
+  source     String
+  sourceType String   @default("pdf")
+  page       Int?
+  chunkIndex Int      @default(0)
+  tags       String[]
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([source])
+  @@map("knowledge_chunks")
+}
+
+model PasswordResetToken {
+  id        String    @id
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model RefreshToken {
@@ -521,6 +599,15 @@ model Invoice {
   externalRef String?
   vatRate     Decimal?      @db.Decimal(5, 2)
 
+  // Integrity (migration 20260417130000_add_invoice_integrity_hash)
+  // Computed with HMAC-SHA256 at issuance. Kept nullable for legacy / draft rows.
+  integrityHash   String?
+  integrityHashAt DateTime?
+
+  // Retention (migration 20260417140000_add_invoice_retention)
+  archivalPending Boolean   @default(false)
+  archivedAt      DateTime?
+
   clientId  String?
   client    Client?  @relation(fields: [clientId], references: [id])
   jobId     String?
@@ -540,6 +627,7 @@ model Invoice {
   @@index([companyId])
   @@index([clientId])
   @@index([status])
+  @@index([integrityHash])
   @@map("invoices")
 }
 
