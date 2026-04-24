@@ -63,6 +63,7 @@ export interface Quote {
   reference: string;
   clientId: string;
   clientName: string;
+  clientAddress?: string;
   subject: string;
   amount: number;
   status: QuoteStatus;

@@ -138,6 +138,7 @@ export default function Quotes() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [convertWithWorkshop, setConvertWithWorkshop] = useState(false);
   const [convertWithPurchases, setConvertWithPurchases] = useState(false);
+  const [convertJobAddress, setConvertJobAddress] = useState('');
   const updateMutation = useUpdateQuote();
   const statusMutation = useUpdateQuoteStatus();
 
@@ -531,6 +532,7 @@ export default function Quotes() {
                     onClick={() => {
                       setConvertWithWorkshop(false);
                       setConvertWithPurchases(false);
+                      setConvertJobAddress(selectedQuote.clientAddress ?? '');
                       setConvertDialogOpen(true);
                     }}
                   >
@@ -1042,7 +1044,7 @@ export default function Quotes() {
 
       {/* Convert Full Dialog */}
       <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Convertir le devis</DialogTitle>
           </DialogHeader>
@@ -1050,7 +1052,23 @@ export default function Quotes() {
             <p className="text-sm text-muted-foreground">
               Le devis <strong>{selectedQuote?.reference}</strong> sera converti en chantier.
             </p>
-            <div className="space-y-3">
+
+            {/* Adresse du chantier */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Adresse du chantier</label>
+              <p className="text-xs text-muted-foreground">
+                Pré-remplie depuis l'adresse du client — modifiez-la si le chantier est à un endroit différent.
+              </p>
+              <input
+                type="text"
+                value={convertJobAddress}
+                onChange={e => setConvertJobAddress(e.target.value)}
+                placeholder="Adresse du chantier"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="space-y-3 border-t pt-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -1077,13 +1095,14 @@ export default function Quotes() {
               disabled={convertFullMutation.isPending || convertMutation.isPending}
               onClick={async () => {
                 if (!selectedQuote) return;
+                const jobAddress = convertJobAddress.trim() || undefined;
                 if (convertWithWorkshop || convertWithPurchases) {
                   await convertFullMutation.mutateAsync({
                     id: selectedQuote.id,
-                    options: { createWorkshop: convertWithWorkshop, createPurchases: convertWithPurchases },
+                    options: { createWorkshop: convertWithWorkshop, createPurchases: convertWithPurchases, jobAddress },
                   });
                 } else {
-                  await convertMutation.mutateAsync(selectedQuote.id);
+                  await convertMutation.mutateAsync({ id: selectedQuote.id, jobAddress });
                 }
                 setConvertDialogOpen(false);
               }}

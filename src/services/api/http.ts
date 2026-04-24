@@ -3,7 +3,10 @@
  * - Injects Authorization (Bearer) and X-Company-Id headers on every request.
  * - On 401: attempts one silent refresh → retries the original request.
  * - If refresh fails: triggers logout via the auth store.
+ * - On 403 with code `AI_CONSENT_REQUIRED`: broadcasts via aiConsentBus so the
+ *   UI can open the opt-in modal without the call site having to know.
  */
+import { aiConsentBus } from '@/lib/ai-consent-bus';
 
 const BASE_URL = '/api';
 
@@ -83,7 +86,8 @@ async function request<T>(
     const retryRes = await fetch(`${BASE_URL}${path}`, { ...options, headers });
     if (!retryRes.ok) {
       const err = await retryRes.json().catch(() => ({}));
-      throw new ApiError(retryRes.status, err.message?.[0] ?? 'Erreur');
+      const msg = Array.isArray(err.message) ? err.message[0] : (err.message ?? 'Erreur');
+      throw new ApiError(retryRes.status, msg, err.code, err);
     }
     return retryRes.json() as Promise<T>;
   }
@@ -91,7 +95,10 @@ async function request<T>(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msg = Array.isArray(err.message) ? err.message[0] : (err.message ?? 'Erreur serveur');
-    throw new ApiError(res.status, msg);
+    if (res.status === 403 && err.code === 'AI_CONSENT_REQUIRED') {
+      aiConsentBus.request();
+    }
+    throw new ApiError(res.status, msg, err.code, err);
   }
 
   // 204 No Content
@@ -129,9 +136,16 @@ async function silentRefresh(): Promise<boolean> {
 // ─── Error class ────────────────────────────────────────────────────────────
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  /** Machine-readable server code (e.g. 'AI_CONSENT_REQUIRED'), when present. */
+  public readonly code?: string;
+  /** Raw server payload, for rare edge cases that need more than status + message. */
+  public readonly payload?: unknown;
+
+  constructor(public status: number, message: string, code?: string, payload?: unknown) {
     super(message);
     this.name = 'ApiError';
+    this.code = code;
+    this.payload = payload;
   }
 }
 

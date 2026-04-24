@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppProvider, useApp } from "@/contexts/AppContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { TerrainLayout } from "@/components/layout/TerrainLayout";
 import Dashboard from "./pages/Dashboard";
@@ -29,6 +30,12 @@ import TerrainProfile from "./pages/terrain/TerrainProfile";
 import TerrainQueue from "./pages/terrain/TerrainQueue";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/auth/LoginPage";
+import LegalLayout from "./pages/legal/LegalLayout";
+import MentionsLegales from "./pages/legal/MentionsLegales";
+import Cgu from "./pages/legal/Cgu";
+import Cgv from "./pages/legal/Cgv";
+import Confidentialite from "./pages/legal/Confidentialite";
+import Account from "./pages/Account";
 
 /**
  * Wraps protected routes. Redirects to /login when not authenticated.
@@ -74,14 +81,23 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => (
-  <AppProvider>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+  <ErrorBoundary>
+    <AppProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+
+          {/* Public legal pages (accessible without login — required for commercial use). */}
+          <Route element={<LegalLayout />}>
+            <Route path="/mentions-legales" element={<MentionsLegales />} />
+            <Route path="/cgu" element={<Cgu />} />
+            <Route path="/cgv" element={<Cgv />} />
+            <Route path="/confidentialite" element={<Confidentialite />} />
+          </Route>
 
           {/* Protected desktop layout */}
           <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
@@ -100,6 +116,7 @@ const App = () => (
             <Route path="/reports" element={<Reports />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/admin/import" element={<ImportData />} />
+            <Route path="/account" element={<Account />} />
           </Route>
 
           {/* Protected terrain mobile layout */}
@@ -115,9 +132,10 @@ const App = () => (
 
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </AppProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AppProvider>
+  </ErrorBoundary>
 );
 
 export default App;

@@ -1,4 +1,5 @@
 import { useApp } from '@/contexts/AppContext';
+import { Link } from 'react-router-dom';
 import { GlobalSearch } from '@/components/shared/GlobalSearch';
 import { Company } from '@/types';
 import { Building2, User, ChevronDown, LogOut } from 'lucide-react';
@@ -47,12 +48,24 @@ export function Topbar() {
 
         {/* User + Logout */}
         <div className="flex items-center gap-1.5">
-          <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center">
-            <User className="h-3 w-3 text-secondary-foreground" />
-          </div>
-          <span className="hidden lg:inline text-xs font-medium">{currentUser?.name}</span>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={logout}>
-            <LogOut className="h-3.5 w-3.5" />
+          <Link
+            to="/account"
+            aria-label="Mon compte"
+            className="flex items-center gap-1.5 rounded px-1 py-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary hover:bg-muted"
+          >
+            <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center">
+              <User aria-hidden="true" className="h-3 w-3 text-secondary-foreground" />
+            </div>
+            <span className="hidden lg:inline text-xs font-medium">{currentUser?.name}</span>
+          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={logout}
+            aria-label="Se déconnecter"
+          >
+            <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>

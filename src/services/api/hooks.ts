@@ -133,7 +133,7 @@ export function useConvertToJob() {
   const queryClient = useQueryClient();
   const { selectedCompany } = useApp();
   return useMutation({
-    mutationFn: (id: string) => quotesApi.convertToJob(id),
+    mutationFn: ({ id, jobAddress }: { id: string; jobAddress?: string }) => quotesApi.convertToJob(id, jobAddress),
     onSuccess: (job: any) => {
       queryClient.invalidateQueries({ queryKey: ['quotes', selectedCompany] });
       queryClient.invalidateQueries({ queryKey: ['jobs', selectedCompany] });
@@ -149,7 +149,7 @@ export function useConvertFull() {
   const queryClient = useQueryClient();
   const { selectedCompany } = useApp();
   return useMutation({
-    mutationFn: ({ id, options }: { id: string; options: { createWorkshop?: boolean; createPurchases?: boolean } }) =>
+    mutationFn: ({ id, options }: { id: string; options: { createWorkshop?: boolean; createPurchases?: boolean; jobAddress?: string } }) =>
       quotesApi.convertFull(id, options),
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['quotes', selectedCompany] });

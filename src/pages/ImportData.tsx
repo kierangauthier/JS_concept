@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { AdminSubnav } from '@/components/shared/AdminSubnav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -96,6 +97,7 @@ export default function ImportData() {
 
   return (
     <div className="space-y-6">
+      <AdminSubnav />
       <PageHeader
         title="Importer des données"
         subtitle="Migrer vos données existantes depuis Excel/CSV"

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { AdminSubnav } from '@/components/shared/AdminSubnav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUsers, useClients, useJobs, useQuotes, useInvoices, usePurchases, useCreateUser, useUpdateUser, useDeleteUser, useResetPassword, useReminderRules, useCreateReminderRule, useUpdateReminderRule, useDeleteReminderRule, useRunReminders } from '@/services/api/hooks';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
@@ -160,6 +161,7 @@ export default function AdminPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
+        <AdminSubnav />
         <PageHeader title="Administration" subtitle="Chargement..." />
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
@@ -174,6 +176,7 @@ export default function AdminPage() {
   if (hasError) {
     return (
       <div className="space-y-6">
+        <AdminSubnav />
         <PageHeader title="Administration" subtitle="Paramètres et gestion" />
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -197,6 +200,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
+      <AdminSubnav />
       <PageHeader title="Administration" subtitle="Paramètres et gestion" />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">

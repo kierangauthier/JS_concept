@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
 import { useFormGuard } from '@/hooks/use-dirty-form';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -6,18 +8,25 @@ import { DataTable, Column } from '@/components/shared/DataTable';
 import { CompanyBadge } from '@/components/shared/StatusBadge';
 import { CompanySelect } from '@/components/shared/CompanySelect';
 import { Client } from '@/types';
-import { toast } from 'sonner';
 import { useClients, useCreateClient, useUpdateClient, useArchiveClient } from '@/services/api/hooks';
 import { CreateClientPayload } from '@/services/api/clients.api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Pencil, Users, Archive } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { clientSchema, ClientFormValues } from '@/lib/schemas';
 
 export default function Clients() {
   const { data: apiClients, isLoading, isError } = useClients();
@@ -33,81 +42,68 @@ export default function Clients() {
   // Detail drawer
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
-  // Form state
+  // Form state — validation handled by zod via react-hook-form.
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [formName, setFormName] = useState('');
-  const [formContact, setFormContact] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formPhone, setFormPhone] = useState('');
-  const [formAddress, setFormAddress] = useState('');
-  const [formCity, setFormCity] = useState('');
-  const [formType, setFormType] = useState<'public' | 'private'>('private');
   const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
-  const [formBaseline, setFormBaseline] = useState<unknown>(null);
+  const [formBaseline, setFormBaseline] = useState<ClientFormValues | null>(null);
 
-  const formValuesForGuard = useMemo(
-    () => ({
-      name: formName, contact: formContact, email: formEmail, phone: formPhone,
-      address: formAddress, city: formCity, type: formType,
-    }),
-    [formName, formContact, formEmail, formPhone, formAddress, formCity, formType],
-  );
+  const EMPTY_VALUES: ClientFormValues = {
+    name: '', contact: '', email: '', phone: '', address: '', city: '', type: 'private',
+  };
+
+  const form = useForm<ClientFormValues>({
+    resolver: zodResolver(clientSchema),
+    defaultValues: EMPTY_VALUES,
+    mode: 'onBlur',
+  });
+
+  const formValuesForGuard = form.watch();
   const { guardClose: guardCloseForm } = useFormGuard(
     formValuesForGuard,
-    formOpen ? (formBaseline as typeof formValuesForGuard | null) : null,
+    formOpen ? formBaseline : null,
     formOpen,
   );
+
   const closeForm = () => {
     setFormOpen(false);
     setEditingClient(null);
     setFormBaseline(null);
+    form.reset(EMPTY_VALUES);
   };
 
   function openCreateForm() {
     setEditingClient(null);
-    setFormName('');
-    setFormContact('');
-    setFormEmail('');
-    setFormPhone('');
-    setFormAddress('');
-    setFormCity('');
-    setFormType('private');
-    setFormBaseline({
-      name: '', contact: '', email: '', phone: '', address: '', city: '', type: 'private' as const,
-    });
+    form.reset(EMPTY_VALUES);
+    setFormBaseline(EMPTY_VALUES);
     setFormOpen(true);
   }
 
   function openEditForm(c: Client) {
     setEditingClient(c);
-    setFormName(c.name);
-    setFormContact(c.contact);
-    setFormEmail(c.email);
-    setFormPhone(c.phone);
-    setFormAddress(c.address);
-    setFormCity(c.city);
-    setFormType(c.type as 'public' | 'private');
-    setFormBaseline({
-      name: c.name, contact: c.contact, email: c.email, phone: c.phone,
-      address: c.address, city: c.city, type: c.type as 'public' | 'private',
-    });
+    const values: ClientFormValues = {
+      name: c.name,
+      contact: c.contact ?? '',
+      email: c.email,
+      phone: c.phone ?? '',
+      address: c.address ?? '',
+      city: c.city ?? '',
+      type: (c.type as 'public' | 'private') ?? 'private',
+    };
+    form.reset(values);
+    setFormBaseline(values);
     setFormOpen(true);
   }
 
-  async function handleFormSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!formName.trim()) { toast.error('Saisissez un nom'); return; }
-    if (!formEmail.trim()) { toast.error('Saisissez un email'); return; }
-
+  async function onValid(values: ClientFormValues) {
     const payload: CreateClientPayload = {
-      name: formName.trim(),
-      contact: formContact.trim(),
-      email: formEmail.trim(),
-      phone: formPhone.trim(),
-      address: formAddress.trim(),
-      city: formCity.trim(),
-      type: formType,
+      name: values.name,
+      contact: values.contact ?? '',
+      email: values.email,
+      phone: values.phone ?? '',
+      address: values.address ?? '',
+      city: values.city ?? '',
+      type: values.type,
     };
 
     if (editingClient) {
@@ -205,52 +201,132 @@ export default function Clients() {
             <SheetTitle>{editingClient ? `Modifier ${editingClient.name}` : 'Nouveau client'}</SheetTitle>
           </SheetHeader>
 
-          <form onSubmit={handleFormSubmit} className="space-y-4">
-            {!editingClient && <CompanySelect value={formCompany} onChange={setFormCompany} />}
-            <div className="space-y-1.5">
-              <Label htmlFor="c-name">Nom *</Label>
-              <Input id="c-name" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Raison sociale" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-contact">Contact</Label>
-              <Input id="c-contact" value={formContact} onChange={e => setFormContact(e.target.value)} placeholder="Nom du contact" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-email">Email *</Label>
-              <Input id="c-email" type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="email@example.com" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-phone">Téléphone</Label>
-              <Input id="c-phone" value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="01 23 45 67 89" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-address">Adresse</Label>
-              <Input id="c-address" value={formAddress} onChange={e => setFormAddress(e.target.value)} placeholder="Rue, numéro" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-city">Ville</Label>
-              <Input id="c-city" value={formCity} onChange={e => setFormCity(e.target.value)} placeholder="Ville" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-type">Type *</Label>
-              <Select value={formType} onValueChange={(v: 'public' | 'private') => setFormType(v)}>
-                <SelectTrigger id="c-type"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="private">Privé</SelectItem>
-                  <SelectItem value="public">Public</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onValid)} className="space-y-4" noValidate>
+              {!editingClient && <CompanySelect value={formCompany} onChange={setFormCompany} />}
 
-            <div className="flex gap-2 pt-2">
-              <Button type="submit" className="flex-1" disabled={createMutation.isPending || updateMutation.isPending}>
-                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editingClient ? 'Mettre à jour' : 'Créer le client'}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => guardCloseForm(closeForm)}>
-                Annuler
-              </Button>
-            </div>
-          </form>
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Nom <span aria-hidden="true" className="text-destructive">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="Raison sociale" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="contact"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nom du contact" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Email <span aria-hidden="true" className="text-destructive">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="email@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Téléphone</FormLabel>
+                    <FormControl>
+                      <Input placeholder="01 23 45 67 89" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Adresse</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Rue, numéro" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ville</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ville" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Type <span aria-hidden="true" className="text-destructive">*</span>
+                    </FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="private">Privé</SelectItem>
+                        <SelectItem value="public">Public</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" className="flex-1" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {(createMutation.isPending || updateMutation.isPending)
+                    ? 'Enregistrement…'
+                    : editingClient ? 'Mettre à jour' : 'Créer le client'}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => guardCloseForm(closeForm)}>
+                  Annuler
+                </Button>
+              </div>
+            </form>
+          </Form>
         </SheetContent>
       </Sheet>
 

@@ -31,9 +31,6 @@ export default function Dashboard() {
   const { data: apiTimeEntries, isLoading: loadingTime } = useTimeEntries();
   const { data: apiWorkshopItems, isLoading: loadingWorkshop } = useWorkshopItems();
   const { data: dashboardMargins } = useDashboardMargins();
-  // Expiring HR docs widget: the hook was never exported, so we skip this alert category for now.
-  type ExpiringDoc = { id: string; userName: string; docType: string; expiresInDays: number };
-  const expiringDocs = undefined as unknown as ExpiringDoc[] | undefined;
 
   const isLoading = loadingQuotes || loadingJobs || loadingInvoices || loadingPurchases || loadingTime || loadingWorkshop;
 
@@ -155,18 +152,6 @@ export default function Dashboard() {
     });
   }
 
-  // Expiring HR documents
-  if (expiringDocs && expiringDocs.length > 0) {
-    alerts.push({
-      id: 'expiring-hr-docs',
-      type: 'warning',
-      icon: AlertTriangle,
-      title: `${expiringDocs.length} document(s) RH expirent dans 30 jours`,
-      detail: expiringDocs.slice(0, 3).map((d: { userName: string; docType: string }) => `${d.userName} — ${d.docType}`).join(', '),
-      link: '/hr',
-      linkLabel: 'Voir RH',
-    });
-  }
 
   const alertColors = {
     danger: 'border-l-destructive bg-destructive/5',

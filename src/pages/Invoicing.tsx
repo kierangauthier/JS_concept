@@ -20,7 +20,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Send, Plus, CheckCircle2, Loader2, Mail, Bell, Settings, Eye } from 'lucide-react';
+import { Download, Send, Plus, CheckCircle2, Loader2, Mail, Bell, Settings, Eye, FileCheck2 } from 'lucide-react';
+import { FacturXError } from '@/services/api/invoices.api';
 import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -86,6 +87,7 @@ export default function Invoicing() {
 
   // PDF download state
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [facturXLoading, setFacturXLoading] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
 
   // Email
@@ -140,6 +142,25 @@ export default function Invoicing() {
       toast.error(err.message ?? 'Erreur téléchargement PDF');
     } finally {
       setPdfLoading(false);
+    }
+  }
+
+  async function handleDownloadFacturX(invoiceId: string) {
+    setFacturXLoading(true);
+    try {
+      await invoicesApi.downloadFacturX(invoiceId);
+      toast.success('Factur-X téléchargé');
+    } catch (err) {
+      if (err instanceof FacturXError && err.status === 422 && err.missing.length > 0) {
+        toast.error(
+          `Factur-X indisponible — ${err.missing.length} champ(s) légaux manquant(s) : ${err.missing.join(', ')}`,
+          { duration: 8000 },
+        );
+      } else {
+        toast.error((err as any)?.message ?? 'Erreur Factur-X');
+      }
+    } finally {
+      setFacturXLoading(false);
     }
   }
 
@@ -388,6 +409,21 @@ export default function Invoicing() {
                   onClick={() => handleDownloadPdf(selectedInvoice.id)}
                 >
                   {pdfLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} PDF
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs gap-1"
+                  disabled={facturXLoading || selectedInvoice.status === 'draft'}
+                  title={selectedInvoice.status === 'draft'
+                    ? 'Émettez la facture pour générer le Factur-X'
+                    : 'Télécharger le Factur-X (PDF/A-3 avec XML embarqué)'}
+                  onClick={() => handleDownloadFacturX(selectedInvoice.id)}
+                >
+                  {facturXLoading
+                    ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                    : <FileCheck2 className="h-3 w-3" aria-hidden="true" />
+                  } Factur-X
                 </Button>
                 <Button
                   size="sm"

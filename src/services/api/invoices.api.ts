@@ -1,6 +1,24 @@
 import { http } from './http';
 import { Invoice } from '@/types';
 
+/** V6 — Thrown when the Factur-X endpoint refuses to emit (e.g. missing legal fields). */
+export class FacturXError extends Error {
+  public readonly status: number;
+  public readonly missing: string[];
+  public readonly payload: unknown;
+
+  constructor(status: number, payload: unknown) {
+    const body = (payload ?? {}) as { message?: string | string[]; missing?: string[] };
+    const raw = Array.isArray(body.message) ? body.message[0] : body.message;
+    const msg = raw ?? 'Impossible de générer le Factur-X';
+    super(msg);
+    this.name = 'FacturXError';
+    this.status = status;
+    this.missing = Array.isArray(body.missing) ? body.missing : [];
+    this.payload = payload;
+  }
+}
+
 interface PaginatedResponse<T> {
   data: T[];
   total: number;
@@ -99,6 +117,38 @@ export const invoicesApi = {
     if (!res.ok) throw new Error('Erreur lors de la génération du PDF');
     const blob = await res.blob();
     return URL.createObjectURL(blob);
+  },
+
+  /**
+   * V6 — Download the Factur-X hybrid PDF/A-3.
+   * Throws a FacturXMissingFieldsError (extends Error) with the `missing`
+   * list when the backend answers 422, so the UI can show a precise prompt.
+   */
+  downloadFacturX: async (invoiceId: string): Promise<void> => {
+    const tokens = JSON.parse(localStorage.getItem('cm_tokens') ?? '{}');
+    const res = await fetch(`/api/invoices/${invoiceId}/facturx`, {
+      headers: {
+        ...(tokens.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}),
+      },
+    });
+    if (!res.ok) {
+      let detail: unknown = undefined;
+      try { detail = await res.json(); } catch { /* non-JSON error body */ }
+      const err = new FacturXError(res.status, detail);
+      throw err;
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') ?? '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match?.[1] ?? `facture-${invoiceId}.factur-x.pdf`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   },
 
   exportFec: async (from: string, to: string): Promise<void> => {

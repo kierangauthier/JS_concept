@@ -56,6 +56,7 @@ export function AppSidebar() {
 
   return (
     <aside
+      aria-label="Navigation principale"
       className={`hidden md:flex flex-col h-screen sticky top-0 transition-all duration-200 ${
         collapsed ? 'w-16' : 'w-56'
       }`}
@@ -112,14 +113,16 @@ export function AppSidebar() {
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                      aria-label={collapsed ? item.title : undefined}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                         isActive
                           ? 'bg-primary/15 text-primary'
                           : 'hover:bg-[hsl(var(--sidebar-accent))]'
                       }`}
                       style={{ color: isActive ? undefined : 'hsl(var(--sidebar-fg))' }}
                     >
-                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
                       {!collapsed && <span className="truncate">{item.title}</span>}
                     </Link>
                   );
@@ -139,11 +142,14 @@ export function AppSidebar() {
 
       {/* Collapse toggle */}
       <button
+        type="button"
         onClick={() => setCollapsed(c => !c)}
-        className="flex items-center justify-center h-10 border-t hover:bg-[hsl(var(--sidebar-accent))] transition-colors"
+        aria-label={collapsed ? 'Déplier la barre latérale' : 'Replier la barre latérale'}
+        aria-expanded={!collapsed}
+        className="flex items-center justify-center h-10 border-t hover:bg-[hsl(var(--sidebar-accent))] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         style={{ borderColor: 'hsl(var(--sidebar-border))', color: 'hsl(var(--sidebar-fg))' }}
       >
-        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        {collapsed ? <ChevronRight aria-hidden="true" className="h-4 w-4" /> : <ChevronLeft aria-hidden="true" className="h-4 w-4" />}
       </button>
     </aside>
   );

@@ -53,10 +53,10 @@ export const quotesApi = {
   duplicate: (id: string): Promise<Quote> =>
     http.post<Quote>(`/quotes/${id}/duplicate`),
 
-  convertToJob: (id: string): Promise<{ id: string; reference: string; title: string; status: string; company: string; clientName: string }> =>
-    http.post(`/quotes/${id}/convert-to-job`),
+  convertToJob: (id: string, jobAddress?: string): Promise<{ id: string; reference: string; title: string; status: string; company: string; clientName: string }> =>
+    http.post(`/quotes/${id}/convert-to-job`, { jobAddress }),
 
-  convertFull: (id: string, options: { createWorkshop?: boolean; createPurchases?: boolean }): Promise<{
+  convertFull: (id: string, options: { createWorkshop?: boolean; createPurchases?: boolean; jobAddress?: string }): Promise<{
     job: { id: string; reference: string; title: string };
     workshopItems: Array<{ id: string; reference: string; description: string }>;
     purchases: Array<{ id: string; reference: string; amount: number }>;
