@@ -1,18 +1,38 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
 import { createId } from '@paralleldrive/cuid2';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto, UpdateInvoiceDto, CreateSituationDto } from './dto/create-invoice.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { AuditService } from '../audit/audit.service';
+import { InvoiceIntegrityService } from './invoice-integrity.service';
+import { generateFacturXXml, pickBestProfile, FacturXInvoice, FacturXProfile, FacturXLine } from './facturx.generator';
+import { FacturXPdfService } from './facturx-pdf.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PdfPrinter = require('pdfmake');
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
+
+/**
+ * Fields that may mutate at any time (administrative / operational).
+ * Everything NOT listed here is frozen once the invoice leaves `draft`.
+ */
+const MUTABLE_AFTER_ISSUE = new Set<keyof UpdateInvoiceDto>(['status', 'paidAt']);
+
+/** Allowed status transitions — enforced in addition to the field freeze. */
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  draft: ['sent', 'cancelled'],
+  sent: ['paid', 'overdue', 'cancelled'],
+  overdue: ['paid', 'cancelled'],
+  paid: [],
+  cancelled: [],
+};
 
 @Injectable()
 export class InvoicesService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
+    private integrity: InvoiceIntegrityService,
+    private facturxPdf: FacturXPdfService,
   ) {}
 
   private mapInvoice(i: any) {
@@ -27,7 +47,24 @@ export class InvoicesService {
       issuedAt: i.issuedAt.toISOString(),
       dueDate: i.dueDate.toISOString(),
       paidAt: i.paidAt?.toISOString() ?? null,
+      integrityHash: i.integrityHash ?? null,
+      integrityHashAt: i.integrityHashAt?.toISOString() ?? null,
     };
+  }
+
+  /** Re-computes the integrity hash and returns the verdict. */
+  private async verifyPersistedIntegrity(invoice: any): Promise<{ ok: boolean; sealed: boolean }> {
+    if (!invoice.integrityHash) return { ok: true, sealed: false };
+    const { ok } = this.integrity.verify(invoice, invoice.integrityHash);
+    if (!ok) {
+      this.audit.log({
+        action: 'INVOICE_INTEGRITY_MISMATCH',
+        entity: 'invoice',
+        entityId: invoice.id,
+        companyId: invoice.companyId,
+      });
+    }
+    return { ok, sealed: true };
   }
 
   private includes = {
@@ -72,11 +109,17 @@ export class InvoicesService {
     const year = new Date().getFullYear();
 
     const invoice = await this.prisma.$transaction(async (tx) => {
+      // Serialise the sequential numbering per company via a transaction-scoped
+      // advisory lock. Postgres does NOT allow `FOR UPDATE` with aggregates
+      // (`MAX()`) — 0A000 error — so we rely on pg_advisory_xact_lock which
+      // auto-releases at commit/rollback. Same company acquires the same lock
+      // key, other companies advance in parallel without contention.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('invoice-seq:' || ${companyId}))`;
+
       const result = await tx.$queryRaw<[{ next_val: bigint }]>`
         SELECT COALESCE(MAX(CAST(SUBSTRING(reference FROM '[0-9]+$') AS INTEGER)), 0) + 1 as next_val
         FROM "invoices"
         WHERE "companyId" = ${companyId}
-        FOR UPDATE
       `;
       const nextVal = Number(result[0].next_val);
       const ref = `FAC-${company!.code}-${year}-${String(nextVal).padStart(3, '0')}`;
@@ -99,17 +142,91 @@ export class InvoicesService {
     const existing = await this.prisma.invoice.findFirst({ where });
     if (!existing) throw new NotFoundException('Invoice not found');
 
+    const wasDraft = existing.status === 'draft';
+
+    // ─── Enforce immutability once the invoice has left `draft` ───────────
+    if (!wasDraft) {
+      const touched = Object.keys(dto).filter((k) => (dto as any)[k] !== undefined);
+      const forbidden = touched.filter((k) => !MUTABLE_AFTER_ISSUE.has(k as any));
+      if (forbidden.length > 0) {
+        throw new ForbiddenException({
+          message:
+            'Facture émise : seules les transitions de statut et la date de paiement sont modifiables. Pour corriger le montant, émettre un avoir.',
+          frozenFields: forbidden,
+        });
+      }
+    }
+
+    // ─── Enforce allowed status transitions ───────────────────────────────
+    if (dto.status && dto.status !== existing.status) {
+      const allowed = STATUS_TRANSITIONS[existing.status] ?? [];
+      if (!allowed.includes(dto.status)) {
+        throw new ForbiddenException(
+          `Transition interdite : ${existing.status} → ${dto.status}`,
+        );
+      }
+    }
+
+    const data: any = {
+      ...dto,
+      status: dto.status as any,
+      dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+      paidAt: dto.paidAt ? new Date(dto.paidAt) : undefined,
+    };
+
+    // ─── Seal the invoice the moment it leaves `draft` ────────────────────
+    const leavingDraft = wasDraft && dto.status && dto.status !== 'draft';
+    if (leavingDraft && !existing.integrityHash) {
+      const sealNow = new Date();
+      // Compute the hash against the FUTURE shape of the row.
+      const projected = {
+        id: existing.id,
+        reference: existing.reference,
+        amount: existing.amount,
+        vatRate: existing.vatRate,
+        issuedAt: existing.issuedAt,
+        dueDate: data.dueDate ?? existing.dueDate,
+        clientId: existing.clientId,
+        jobId: existing.jobId,
+        companyId: existing.companyId,
+      };
+      data.integrityHash = this.integrity.compute(projected);
+      data.integrityHashAt = sealNow;
+    }
+
     const invoice = await this.prisma.invoice.update({
       where: { id },
-      data: {
-        ...dto,
-        status: dto.status as any,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-        paidAt: dto.paidAt ? new Date(dto.paidAt) : undefined,
-      },
+      data,
       include: this.includes,
     });
+
+    this.audit.log({
+      action: leavingDraft ? 'INVOICE_ISSUED' : 'INVOICE_UPDATE',
+      entity: 'invoice',
+      entityId: id,
+      before: { status: existing.status },
+      after: { status: dto.status ?? existing.status, integrityHash: data.integrityHash ?? existing.integrityHash ?? null },
+      companyId: existing.companyId,
+    });
+
     return this.mapInvoice(invoice);
+  }
+
+  /**
+   * Expose the integrity check to the controller.
+   * Returns `{ sealed: boolean, ok: boolean, expected?: string }`.
+   */
+  async checkIntegrity(id: string, companyId: string | null) {
+    const where: any = { id };
+    if (companyId) where.companyId = companyId;
+    const invoice = await this.prisma.invoice.findFirst({ where });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    const verdict = this.integrity.verify(invoice, invoice.integrityHash ?? null);
+    return {
+      sealed: !!invoice.integrityHash,
+      sealedAt: invoice.integrityHashAt?.toISOString() ?? null,
+      ok: invoice.integrityHash ? verdict.ok : true,
+    };
   }
 
   async export(id: string, companyId: string | null, userId: string) {
@@ -144,14 +261,30 @@ export class InvoicesService {
     if (!invoice) throw new NotFoundException('Invoice not found');
 
     const amount = Number(invoice.amount);
-    const tvaRate = 0.20;
+    const tvaRate = invoice.vatRate != null ? Number(invoice.vatRate) / 100 : 0.2;
     const tva = Math.round(amount * tvaRate * 100) / 100;
     const ttc = Math.round((amount + tva) * 100) / 100;
 
-    const companyName = invoice.company.code === 'ASP' ? 'ASP Signalisation' : 'JS Concept';
-    const companyAddress = invoice.company.code === 'ASP'
-      ? 'ASP Signalisation\nSignalisation & Marquage routier'
-      : 'JS Concept\nSignalisation & Aménagement';
+    const c = invoice.company as any;
+    const companyName = c.legalName ?? c.name;
+    const addrLines = [c.addressLine1, c.addressLine2, [c.postalCode, c.city].filter(Boolean).join(' ')]
+      .filter((l) => l && String(l).trim().length > 0);
+    const companyAddress = addrLines.length > 0 ? addrLines.join('\n') : c.name;
+
+    const lateRate = c.latePaymentRate ?? '3 × taux d\'intérêt légal';
+    const lateFee = c.lateFeeFlat != null ? Number(c.lateFeeFlat) : 40;
+    const paymentTermsText =
+      c.paymentTerms ?? 'Paiement à 30 jours fin de mois';
+
+    const legalMentions: string[] = [];
+    if (c.legalForm && c.shareCapital != null)
+      legalMentions.push(`${c.legalForm} au capital de ${Number(c.shareCapital).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`);
+    else if (c.legalForm) legalMentions.push(String(c.legalForm));
+    if (c.siret) legalMentions.push(`SIRET ${c.siret}`);
+    else if (c.siren) legalMentions.push(`SIREN ${c.siren}`);
+    if (c.rcsCity) legalMentions.push(`RCS ${c.rcsCity}`);
+    if (c.vatNumber) legalMentions.push(`TVA ${c.vatNumber}`);
+    const legalFooter = legalMentions.join(' — ');
 
     const formatDate = (d: Date) => d.toLocaleDateString('fr-FR');
 
@@ -256,8 +389,34 @@ export class InvoicesService {
 
         // Payment terms
         { text: 'Conditions de paiement', bold: true, margin: [0, 0, 0, 5] as [number, number, number, number] },
-        { text: `Paiement \u00E0 30 jours fin de mois. Date d'\u00E9ch\u00E9ance : ${formatDate(invoice.dueDate)}.`, color: '#444444' },
-        { text: 'En cas de retard de paiement, des p\u00E9nalit\u00E9s de retard au taux de 3 fois le taux d\'int\u00E9r\u00EAt l\u00E9gal seront exigibles, ainsi qu\'une indemnit\u00E9 forfaitaire pour frais de recouvrement de 40\u20AC.', color: '#666666', fontSize: 8, margin: [0, 5, 0, 0] as [number, number, number, number] },
+        { text: `${paymentTermsText}. Date d'échéance : ${formatDate(invoice.dueDate)}.`, color: '#444444' },
+        ...(c.iban
+          ? [{
+              text: `IBAN : ${c.iban}${c.bic ? `  —  BIC : ${c.bic}` : ''}`,
+              color: '#444444',
+              margin: [0, 4, 0, 0] as [number, number, number, number],
+            }]
+          : []),
+        {
+          text:
+            `En cas de retard de paiement, des pénalités de retard au taux de ${lateRate} seront exigibles, ` +
+            `ainsi qu'une indemnité forfaitaire pour frais de recouvrement de ${lateFee}€ (art. D.441-5 Code de commerce).`,
+          color: '#666666', fontSize: 8, margin: [0, 5, 0, 0] as [number, number, number, number],
+        },
+        ...(legalFooter
+          ? [{
+              text: legalFooter,
+              color: '#888888', fontSize: 7, alignment: 'center' as const,
+              margin: [0, 20, 0, 0] as [number, number, number, number],
+            }]
+          : []),
+        ...((invoice as any).integrityHash
+          ? [{
+              text: `Sceau d'intégrité (HMAC-SHA256) : ${String((invoice as any).integrityHash).slice(0, 32)}…`,
+              color: '#aaaaaa', fontSize: 6, alignment: 'center' as const,
+              margin: [0, 2, 0, 0] as [number, number, number, number],
+            }]
+          : []),
       ],
       styles: {
         companyName: { fontSize: 16, bold: true, color: '#1a1a1a' },
@@ -276,6 +435,161 @@ export class InvoicesService {
       pdfDoc.on('error', reject);
       pdfDoc.end();
     });
+  }
+
+  // ─── Factur-X (multi-profil, PDF/A-3 hybride) ──────────────────────────────
+
+  /**
+   * Builds the Factur-X payload from the stored invoice.
+   *
+   * - Pulls the company legal fields and the client address.
+   * - Maps invoice lines (from the related `Quote`) when available — this
+   *   lets the generator emit BASIC / EN 16931 instead of MINIMUM.
+   * - Checks the mandatory legal mentions. If any are missing the caller
+   *   gets an UnprocessableEntity with the list, rather than a silently
+   *   degraded XML.
+   */
+  private async buildFacturXPayload(
+    invoiceId: string,
+    companyId: string | null,
+  ): Promise<{ payload: FacturXInvoice; profile: FacturXProfile; invoiceRecord: any }> {
+    const where: any = { id: invoiceId };
+    if (companyId) where.companyId = companyId;
+
+    const invoice = await this.prisma.invoice.findFirst({
+      where,
+      include: {
+        client: true,
+        company: true,
+        // The quote carries the detailed lines we need for BASIC / EN16931.
+        job: { include: { quote: { include: { lines: { orderBy: { sortOrder: 'asc' } } } } } },
+      },
+    }) as any;
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (invoice.status === 'draft') {
+      throw new BadRequestException(
+        'Le Factur-X ne peut être produit que pour une facture émise.',
+      );
+    }
+
+    const c = invoice.company as any;
+
+    // ── Fail-fast on missing legal mentions ────────────────────────────
+    const missing: string[] = [];
+    if (!c.legalName && !c.name) missing.push('company.legalName');
+    if (!c.siret && !c.siren) missing.push('company.siret ou company.siren');
+    if (!c.vatNumber) missing.push('company.vatNumber (TVA intracommunautaire)');
+    if (!c.addressLine1) missing.push('company.addressLine1');
+    if (!c.postalCode) missing.push('company.postalCode');
+    if (!c.city) missing.push('company.city');
+    if (!invoice.client?.name) missing.push('client.name');
+
+    if (missing.length > 0) {
+      throw new UnprocessableEntityException({
+        message:
+          'Facture-X indisponible : champs légaux manquants. Complétez-les dans Admin → Paramètres puis réessayez.',
+        missing,
+      });
+    }
+
+    // ── Totals ─────────────────────────────────────────────────────────
+    const amountHT = Number(invoice.amount);
+    const vatRate = invoice.vatRate != null ? Number(invoice.vatRate) / 100 : 0.2;
+    const tva = Math.round(amountHT * vatRate * 100) / 100;
+    const ttc = Math.round((amountHT + tva) * 100) / 100;
+
+    // ── Line items (only when present — falls back to MINIMUM otherwise) ─
+    const quoteLines = invoice.job?.quote?.lines as Array<any> | undefined;
+    const lines: FacturXLine[] | undefined = quoteLines?.length
+      ? quoteLines.map((l) => {
+          const qty = Number(l.quantity ?? 1);
+          const unitPrice = Number(l.unitPrice ?? 0);
+          return {
+            designation: l.designation ?? 'Prestation',
+            quantity: qty,
+            unit: mapUnit(l.unit),
+            unitPrice,
+            vatRate: vatRate * 100,
+            totalHT: Math.round(qty * unitPrice * 100) / 100,
+          };
+        })
+      : undefined;
+
+    const payload: FacturXInvoice = {
+      reference: invoice.reference,
+      issuedAt: invoice.issuedAt,
+      dueDate: invoice.dueDate,
+      vatMode: 'normal',
+      seller: {
+        name: c.legalName ?? c.name,
+        address: c.addressLine1 ?? undefined,
+        postalCode: c.postalCode ?? undefined,
+        city: c.city ?? undefined,
+        countryCode: c.countryCode ?? 'FR',
+        vatNumber: c.vatNumber ?? undefined,
+        siret: c.siret ?? c.siren ?? undefined,
+        legalForm: c.legalForm ?? undefined,
+      },
+      buyer: {
+        name: invoice.client!.name,
+        address: invoice.client?.address ?? undefined,
+        city: invoice.client?.city ?? undefined,
+        countryCode: 'FR',
+      },
+      totalHT: amountHT,
+      totalTVA: tva,
+      totalTTC: ttc,
+      lines,
+      paymentTerms: c.paymentTerms ?? 'Paiement à 30 jours fin de mois',
+      iban: c.iban ?? undefined,
+      bic: c.bic ?? undefined,
+    };
+
+    const profile = pickBestProfile(payload, 'EN16931');
+    return { payload, profile, invoiceRecord: invoice };
+  }
+
+  /**
+   * Returns the Factur-X CII XML on its own. Mostly kept for debugging and
+   * for PDPs that prefer to ingest the XML directly rather than the hybrid
+   * PDF — the front-end always calls the PDF endpoint.
+   */
+  async generateFacturXXml(
+    invoiceId: string,
+    companyId: string | null,
+  ): Promise<{ xml: string; reference: string; profile: FacturXProfile }> {
+    const { payload, profile, invoiceRecord } = await this.buildFacturXPayload(invoiceId, companyId);
+    return {
+      xml: generateFacturXXml(payload, profile),
+      reference: invoiceRecord.reference,
+      profile,
+    };
+  }
+
+  /**
+   * Produces the full hybrid deliverable: a PDF/A-3 with the Factur-X XML
+   * embedded. This is the artefact that client accounting software (Sage,
+   * EBP, Cegid, Pennylane…) expect.
+   */
+  async generateFacturXPdf(
+    invoiceId: string,
+    companyId: string | null,
+  ): Promise<{ buffer: Buffer; reference: string; profile: FacturXProfile }> {
+    const { payload, profile, invoiceRecord } = await this.buildFacturXPayload(invoiceId, companyId);
+    const xml = generateFacturXXml(payload, profile);
+
+    // Produce the visual PDF via the regular pdfmake pipeline.
+    const { buffer: basePdf } = await this.generatePdf(invoiceRecord.id, companyId);
+
+    // Convert to PDF/A-3 and embed the XML.
+    const hybrid = await this.facturxPdf.build({
+      pdf: basePdf,
+      xml,
+      profile,
+      invoiceReference: invoiceRecord.reference,
+    });
+
+    return { buffer: hybrid, reference: invoiceRecord.reference, profile };
   }
 
   // ─── CSV Export (FEC simplifié) ─────────────────────────────────────────────
@@ -367,6 +681,15 @@ export class InvoicesService {
     if (companyId) where.companyId = companyId;
     const invoice = await this.prisma.invoice.findFirst({ where });
     if (!invoice) throw new NotFoundException('Invoice not found');
+
+    // An issued invoice must not be deleted — French commercial law requires
+    // 10-year retention of the original document. Use an AVOIR (credit note)
+    // to offset it instead.
+    if (invoice.status !== 'draft') {
+      throw new ForbiddenException(
+        'Une facture émise ne peut pas être supprimée. Émettre un avoir pour la neutraliser.',
+      );
+    }
 
     await this.prisma.invoice.update({
       where: { id },
@@ -476,5 +799,65 @@ export class InvoicesService {
       data: { status: 'validated' },
     });
     return this.mapSituation(updated);
+  }
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Map an app-level unit string to a UNECE Rec. 20 unit code, which is what
+ * Factur-X (CII) expects. Falls back to C62 ("one / piece") for unknown or
+ * free-text units — this is the safe default accepted by every validator.
+ */
+function mapUnit(unit?: string | null): string {
+  if (!unit) return 'C62';
+  const normalized = unit.trim().toLowerCase();
+  switch (normalized) {
+    case 'u':
+    case 'unit':
+    case 'unite':
+    case 'unité':
+    case 'pièce':
+    case 'piece':
+    case 'pce':
+      return 'C62';
+    case 'h':
+    case 'heure':
+    case 'heures':
+    case 'hour':
+      return 'HUR';
+    case 'jour':
+    case 'jours':
+    case 'j':
+    case 'day':
+      return 'DAY';
+    case 'kg':
+    case 'kilo':
+    case 'kilogramme':
+      return 'KGM';
+    case 'g':
+    case 'gramme':
+      return 'GRM';
+    case 't':
+    case 'tonne':
+      return 'TNE';
+    case 'm':
+    case 'metre':
+    case 'mètre':
+      return 'MTR';
+    case 'm2':
+    case 'm²':
+      return 'MTK';
+    case 'm3':
+    case 'm³':
+      return 'MTQ';
+    case 'l':
+    case 'litre':
+      return 'LTR';
+    case 'ft':
+    case 'forfait':
+      return 'LS'; // lump sum
+    default:
+      return 'C62';
   }
 }

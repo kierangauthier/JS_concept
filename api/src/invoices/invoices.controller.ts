@@ -35,6 +35,41 @@ export class InvoicesController {
     });
   }
 
+  @Get(':id/integrity')
+  checkIntegrity(@Param('id') id: string, @Req() req: any) {
+    return this.invoicesService.checkIntegrity(id, req.companyId);
+  }
+
+  /**
+   * Factur-X hybrid PDF/A-3 (the artefact the user actually wants to send).
+   * Returns a 422 with the list of missing legal fields when the invoice
+   * payload cannot be turned into a compliant document.
+   */
+  @Get(':id/facturx')
+  async downloadFacturX(@Param('id') id: string, @Req() req: any) {
+    const { buffer, reference, profile } = await this.invoicesService.generateFacturXPdf(
+      id,
+      req.companyId,
+    );
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${reference}.factur-x.${profile.toLowerCase()}.pdf"`,
+    });
+  }
+
+  /** Escape hatch: serve the CII XML on its own (debugging, PDP ingesters). */
+  @Get(':id/facturx.xml')
+  async downloadFacturXXml(@Param('id') id: string, @Req() req: any) {
+    const { xml, reference, profile } = await this.invoicesService.generateFacturXXml(
+      id,
+      req.companyId,
+    );
+    return new StreamableFile(Buffer.from(xml, 'utf-8'), {
+      type: 'application/xml; charset=utf-8',
+      disposition: `attachment; filename="${reference}.factur-x.${profile.toLowerCase()}.xml"`,
+    });
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.invoicesService.findOne(id, req.companyId);
