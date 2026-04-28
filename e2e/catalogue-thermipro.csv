@@ -1,0 +1,23 @@
+reference;designation;categorie;unite;prix_vente_ht;prix_revient;type_ligne;fournisseur
+ECO-SW60;Mitsubishi Ecodan PUHZ-SW60VKA — PAC air-eau 6 kW;PAC air-eau;unité;4350;2900;purchase;Mitsubishi Electric France
+ECO-SW80;Mitsubishi Ecodan PUHZ-SW80VKA — PAC air-eau 8 kW;PAC air-eau;unité;5450;3650;purchase;Mitsubishi Electric France
+ECO-SW120;Mitsubishi Ecodan PUHZ-SW120VKA — PAC air-eau 12 kW;PAC air-eau;unité;7200;4800;purchase;Mitsubishi Electric France
+ECO-SW140;Mitsubishi Ecodan PUHZ-SW140VKA — PAC air-eau 14 kW;PAC air-eau;unité;8400;5600;purchase;Mitsubishi Electric France
+DAI-4MO;Daikin Altherma 3 EDLA04D3V3 monobloc — PAC 4 kW;PAC air-eau;unité;3600;2400;purchase;Daikin France
+DAI-8MO;Daikin Altherma 3 EDLA08D3V3 monobloc — PAC 8 kW;PAC air-eau;unité;5250;3500;purchase;Daikin France
+DAI-12MO;Daikin Altherma 3 EDLA12D3V3 monobloc — PAC 12 kW;PAC air-eau;unité;6900;4600;purchase;Daikin France
+ATLA-12;Atlantic Alféa Excellia A.I. 12 kW — PAC eau-eau;PAC eau-eau;unité;8250;5500;purchase;Atlantic Climatisation
+ATLA-20;Atlantic Alféa Excellia A.I. 20 kW — PAC eau-eau;PAC eau-eau;unité;10800;7200;purchase;Atlantic Climatisation
+MOD-EHPT;Module hydraulique Ecodan EHPT20X-VM2C;Modules hydrauliques;unité;2050;1350;purchase;Mitsubishi Electric France
+MOD-EHST;Ballon tampon ECS intégré EHST20D-VM2B (200L);Modules hydrauliques;unité;2550;1700;purchase;Mitsubishi Electric France
+MOD-BALLE;Ballon ECS 200L seul (hors module);Modules hydrauliques;unité;950;600;purchase;Rexel IDF
+ACC-CIRC;Kit circulateur + vase d'expansion + robinets;Accessoires;forfait;520;320;purchase;Rexel IDF
+ACC-FLUIDE;Raccordements frigorifiques + mise en charge R32;Accessoires;forfait;420;250;service;Rexel IDF
+ACC-ELEC;Câblage électrique + disjoncteur dédié + mise à la terre;Accessoires;forfait;460;280;service;Rexel IDF
+ACC-DEPOSE;Dépose ancienne chaudière + évacuation déchets;Accessoires;unité;450;280;service;
+ACC-ROBINET;Remplacement robinet thermostatique (par pièce);Accessoires;unité;38;22;service;Rexel IDF
+ACC-PLANCHER;Raccordement plancher chauffant hydraulique (forfait);Accessoires;forfait;1300;800;service;
+MO-VISITE;Visite technique + étude thermique sur site;Main d'œuvre;forfait;250;120;service;
+MO-TECH;Technicien PAC certifié (heure);Main d'œuvre;h;72;42;service;
+MO-MES;Mise en service + paramétrage + formation client (forfait);Main d'œuvre;forfait;650;380;service;
+MO-DEPL;Déplacement technicien (par km);Main d'œuvre;km;0.85;0.45;service;

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rsm:CrossIndustryInvoice
+  xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+  xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+  xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+
+  <rsm:ExchangedDocumentContext>
+    <ram:GuidelineSpecifiedDocumentContextParameter>
+      <ram:ID>urn:factur-x.eu:1p0:minimum</ram:ID>
+    </ram:GuidelineSpecifiedDocumentContextParameter>
+  </rsm:ExchangedDocumentContext>
+
+  <rsm:ExchangedDocument>
+    <ram:ID>FAC-ASP-2026-001</ram:ID>
+    <ram:TypeCode>380</ram:TypeCode>
+    <ram:IssueDateTime>
+      <udt:DateTimeString format="102">20260422</udt:DateTimeString>
+    </ram:IssueDateTime>
+  </rsm:ExchangedDocument>
+
+  <rsm:SupplyChainTradeTransaction>
+
+    <ram:ApplicableHeaderTradeAgreement>
+
+      <ram:SellerTradeParty>
+        <ram:Name>ASP Signalisation SAS</ram:Name>
+        <ram:SpecifiedLegalOrganization><ram:ID schemeID="0002">12345678900012</ram:ID></ram:SpecifiedLegalOrganization>
+        <ram:PostalTradeAddress>
+          <ram:PostcodeCode>75010</ram:PostcodeCode>
+          <ram:LineOne>12 rue de la Signalisation</ram:LineOne>
+          <ram:CityName>Paris</ram:CityName>
+          <ram:CountryID>FR</ram:CountryID>
+        </ram:PostalTradeAddress>
+        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">FR12345678901</ram:ID></ram:SpecifiedTaxRegistration>
+      </ram:SellerTradeParty>
+
+      <ram:BuyerTradeParty>
+        <ram:Name>Mairie de Saint-Denis</ram:Name>
+        <ram:PostalTradeAddress>
+          <ram:PostcodeCode>93200</ram:PostcodeCode>
+          <ram:LineOne>2 place Victor Hugo</ram:LineOne>
+          <ram:CityName>Saint-Denis</ram:CityName>
+          <ram:CountryID>FR</ram:CountryID>
+        </ram:PostalTradeAddress>
+        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">FR98765432109</ram:ID></ram:SpecifiedTaxRegistration>
+      </ram:BuyerTradeParty>
+    </ram:ApplicableHeaderTradeAgreement>
+
+    <ram:ApplicableHeaderTradeDelivery />
+
+    <ram:ApplicableHeaderTradeSettlement>
+      <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>
+
+      <ram:ApplicableTradeTax>
+        <ram:CalculatedAmount>2490.00</ram:CalculatedAmount>
+        <ram:TypeCode>VAT</ram:TypeCode>
+        
+        <ram:BasisAmount>12450.00</ram:BasisAmount>
+        <ram:CategoryCode>S</ram:CategoryCode>
+        <ram:RateApplicablePercent>20.00</ram:RateApplicablePercent>
+      </ram:ApplicableTradeTax>
+
+      <ram:SpecifiedTradePaymentTerms>
+        
+        <ram:DueDateDateTime>
+          <udt:DateTimeString format="102">20260522</udt:DateTimeString>
+        </ram:DueDateDateTime>
+      </ram:SpecifiedTradePaymentTerms>
+
+      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+        <ram:LineTotalAmount>12450.00</ram:LineTotalAmount>
+        <ram:TaxBasisTotalAmount>12450.00</ram:TaxBasisTotalAmount>
+        <ram:TaxTotalAmount currencyID="EUR">2490.00</ram:TaxTotalAmount>
+        <ram:GrandTotalAmount>14940.00</ram:GrandTotalAmount>
+        <ram:DuePayableAmount>14940.00</ram:DuePayableAmount>
+      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+
+    </ram:ApplicableHeaderTradeSettlement>
+
+  </rsm:SupplyChainTradeTransaction>
+
+</rsm:CrossIndustryInvoice>

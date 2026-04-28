@@ -1,0 +1,55 @@
+reference;designation;gamme;categorie;unite;prix_vente_ht;prix_revient_ht;type_ligne;fluide;puissance_kw;note
+SUZ-SWM30VA;Mitsubishi Ecodan Eco Inverter 3 kW — groupe extérieur split;Eco Inverter;PAC air-eau split;unité;1690;1190;purchase;R32;3;Maisons neuves RE2020 · COP 5,11 · -25°C
+SUZ-SWM40VA2;Mitsubishi Ecodan Eco Inverter 4 kW — groupe extérieur split;Eco Inverter;PAC air-eau split;unité;1920;1350;purchase;R32;4;Maisons neuves RE2020 · COP 5,11 · -25°C
+SUZ-SWM60VA2;Mitsubishi Ecodan Eco Inverter 6 kW — groupe extérieur split;Eco Inverter;PAC air-eau split;unité;2520;1780;purchase;R32;6;Maisons neuves RE2020 · COP 4,85 · -25°C
+SUZ-SWM80VA2;Mitsubishi Ecodan Eco Inverter 8 kW — groupe extérieur split;Eco Inverter;PAC air-eau split;unité;3090;2180;purchase;R32;8;Maisons neuves RE2020 · COP 5,10 · -25°C
+SUZ-SWM100VA;Mitsubishi Ecodan Eco Inverter 10 kW — groupe extérieur split;Eco Inverter;PAC air-eau split;unité;3750;2650;purchase;R32;10;Maisons neuves RE2020 · COP 4,85 · -25°C
+SUZ-SHWM30VAH;Mitsubishi Ecodan Eco Inverter+ 3 kW Hyper Heating — groupe extérieur split;Eco Inverter+;PAC air-eau split;unité;1970;1390;purchase;R32;3;Hyper Heating · puissance maintenue jusqu'à -20°C · -25°C
+SUZ-SHWM40VAH;Mitsubishi Ecodan Eco Inverter+ 4 kW Hyper Heating — groupe extérieur split;Eco Inverter+;PAC air-eau split;unité;2260;1590;purchase;R32;4;Hyper Heating · puissance maintenue jusqu'à -20°C · -25°C
+SUZ-SHWM60VAH;Mitsubishi Ecodan Eco Inverter+ 6 kW Hyper Heating — groupe extérieur split;Eco Inverter+;PAC air-eau split;unité;2950;2080;purchase;R32;6;Hyper Heating · puissance maintenue jusqu'à -20°C · -25°C
+PUZ-SWM80VAA;Mitsubishi Ecodan Power Inverter Silence 8 kW — groupe extérieur split monophasé;Power Inverter;PAC air-eau split;unité;3470;2450;purchase;R32;8;Silence 42 dB(A) · 68°C · neuf + réno · -25°C
+PUZ-SWM80YAA;Mitsubishi Ecodan Power Inverter Silence 8 kW — groupe extérieur split triphasé;Power Inverter;PAC air-eau split;unité;3610;2550;purchase;R32;8;Silence 42 dB(A) · 68°C · neuf + réno · -25°C · 400V
+PUZ-SWM100VAA;Mitsubishi Ecodan Power Inverter Silence 10 kW — groupe extérieur split monophasé;Power Inverter;PAC air-eau split;unité;4180;2950;purchase;R32;10;Silence · 68°C · neuf + réno · -25°C
+PUZ-SWM100YAA;Mitsubishi Ecodan Power Inverter Silence 10 kW — groupe extérieur split triphasé;Power Inverter;PAC air-eau split;unité;4350;3080;purchase;R32;10;Silence · 68°C · neuf + réno · -25°C · 400V
+PUZ-SWM120VAA;Mitsubishi Ecodan Power Inverter Silence 12 kW — groupe extérieur split monophasé;Power Inverter;PAC air-eau split;unité;4930;3480;purchase;R32;12;Silence · 68°C · neuf + réno · -25°C
+PUZ-SWM120YAA;Mitsubishi Ecodan Power Inverter Silence 12 kW — groupe extérieur split triphasé;Power Inverter;PAC air-eau split;unité;5130;3620;purchase;R32;12;Silence · 68°C · neuf + réno · -25°C · 400V
+PUHZ-SW220VKA;Mitsubishi Ecodan Power Inverter 22 kW — groupe extérieur split grande puissance;Power Inverter;PAC air-eau split;unité;7050;4980;purchase;R410A;22;Grande puissance · triphasé · logement collectif
+PUHZ-SW250VKA;Mitsubishi Ecodan Power Inverter 25 kW — groupe extérieur split grande puissance;Power Inverter;PAC air-eau split;unité;8040;5680;purchase;R410A;25;Grande puissance · triphasé · logement collectif
+PUZ-SHWM80VAA;Mitsubishi Ecodan Zubadan Silence 8 kW — groupe extérieur split monophasé;Zubadan Silence;PAC air-eau split;unité;4460;3150;purchase;R32;8;Zubadan · -30°C · 70°C · COP 5,05 · 42 dB(A)
+PUZ-SHWM80YAA;Mitsubishi Ecodan Zubadan Silence 8 kW — groupe extérieur split triphasé;Zubadan Silence;PAC air-eau split;unité;4640;3280;purchase;R32;8;Zubadan · -30°C · 70°C · 400V
+PUZ-SHWM100VAA;Mitsubishi Ecodan Zubadan Silence 10 kW — groupe extérieur split monophasé;Zubadan Silence;PAC air-eau split;unité;5210;3680;purchase;R32;10;Zubadan · -30°C · 70°C · -15°C maintien puissance
+PUZ-SHWM100YAA;Mitsubishi Ecodan Zubadan Silence 10 kW — groupe extérieur split triphasé;Zubadan Silence;PAC air-eau split;unité;5410;3820;purchase;R32;10;Zubadan · -30°C · 70°C · 400V
+PUZ-SHWM120VAA;Mitsubishi Ecodan Zubadan Silence 12 kW — groupe extérieur split monophasé;Zubadan Silence;PAC air-eau split;unité;6010;4250;purchase;R32;12;Zubadan · -30°C · 70°C
+PUZ-SHWM120YAA;Mitsubishi Ecodan Zubadan Silence 12 kW — groupe extérieur split triphasé;Zubadan Silence;PAC air-eau split;unité;6250;4420;purchase;R32;12;Zubadan · -30°C · 70°C · 400V
+PUZ-SHWM140VAA;Mitsubishi Ecodan Zubadan Silence 14 kW — groupe extérieur split monophasé;Zubadan Silence;PAC air-eau split;unité;7050;4980;purchase;R32;14;Zubadan · -30°C · 70°C
+PUZ-SHWM140YAA;Mitsubishi Ecodan Zubadan Silence 14 kW — groupe extérieur split triphasé;Zubadan Silence;PAC air-eau split;unité;7330;5180;purchase;R32;14;Zubadan · -30°C · 70°C · 400V
+PUHZ-SHW230YKA2;Mitsubishi Ecodan Zubadan 23 kW — groupe extérieur split triphasé grande puissance;Zubadan;PAC air-eau split;unité;9130;6450;purchase;R410A;23;Grande puissance · triphasé · rénovation tertiaire · -25°C
+PUZ-WZ50VHA;Mitsubishi Ecodan Eco Inverter Silence R290 5 kW — groupe extérieur hydrosplit;Eco Inverter Silence R290;PAC air-eau hydrosplit;unité;3940;2780;purchase;R290;5;NOUVEAU · R290 · RE2020 · faible impact carbone · 75°C
+PUZ-WZ60VHA;Mitsubishi Ecodan Eco Inverter Silence R290 6 kW — groupe extérieur hydrosplit;Eco Inverter Silence R290;PAC air-eau hydrosplit;unité;4220;2980;purchase;R290;6;NOUVEAU · R290 · RE2020 · faible impact carbone · 75°C
+PUZ-WZ80VAA;Mitsubishi Ecodan Power Inverter HT Silence R290 8 kW — groupe extérieur hydrosplit;Power Inverter HT Silence R290;PAC air-eau hydrosplit;unité;4930;3480;purchase;R290;8;NOUVEAU · R290 · rénovation · 75°C · -25°C
+PUZ-WZ100VAA;Mitsubishi Ecodan Power Inverter HT Silence R290 10 kW — groupe extérieur hydrosplit;Power Inverter HT Silence R290;PAC air-eau hydrosplit;unité;5730;4050;purchase;R290;10;NOUVEAU · R290 · rénovation · 75°C · -25°C
+PUZ-WZ120VAA;Mitsubishi Ecodan Power Inverter HT Silence R290 12 kW — groupe extérieur hydrosplit;Power Inverter HT Silence R290;PAC air-eau hydrosplit;unité;6580;4650;purchase;R290;12;NOUVEAU · R290 · rénovation · 75°C · -25°C
+PUZ-WM50VHA;Mitsubishi Ecodan Power Inverter 5 kW — groupe extérieur hydrosplit;Power Inverter;PAC air-eau hydrosplit;unité;3750;2650;purchase;R32;5;Hydrosplit · liaisons hydrauliques · -25°C
+PUZ-WM60VAA;Mitsubishi Ecodan Power Inverter Silence 6 kW — groupe extérieur hydrosplit;Power Inverter;PAC air-eau hydrosplit;unité;4320;3050;purchase;R32;6;Hydrosplit · Silence · -25°C
+PUZ-WM85VAA;Mitsubishi Ecodan Power Inverter Silence 9 kW — groupe extérieur hydrosplit;Power Inverter;PAC air-eau hydrosplit;unité;5070;3580;purchase;R32;9;Hydrosplit · Silence · -25°C
+PUZ-WM112VAA;Mitsubishi Ecodan Power Inverter Silence 11 kW — groupe extérieur hydrosplit;Power Inverter;PAC air-eau hydrosplit;unité;5920;4180;purchase;R32;11;Hydrosplit · Silence · -25°C
+PUZ-HWM140VHA;Mitsubishi Ecodan Zubadan 14 kW — groupe extérieur hydrosplit;Zubadan;PAC air-eau hydrosplit;unité;7760;5480;purchase;R32;14;Hydrosplit · Zubadan · -30°C · 70°C
+ERSD-VM6E;Module hydraulique Ecodan chauffage seul — mural (pour SUZ-SWM 3-6 kW);Modules;Module hydraulique intérieur;unité;2620;1850;purchase;;3-6;Module mural · 800×530×360 · appoint 6 kW · vase exp. 10L
+ERSF-VM6E;Module hydraulique Ecodan chauffage seul — mural (pour PUZ-SWM / PUZ-SHWM 8-14 kW mono);Modules;Module hydraulique intérieur;unité;2900;2050;purchase;;8-14;Module mural · 800×530×360 · appoint 6 kW · vase exp. 10L
+ERSF-YM9E;Module hydraulique Ecodan chauffage seul — mural triphasé (pour PUZ-SHWM 8-14 kW tri);Modules;Module hydraulique intérieur;unité;3090;2180;purchase;;8-14;Module mural triphasé · 800×530×360 · appoint 9 kW
+ERSE-YM9EE;Module hydraulique Ecodan chauffage seul grande puissance — mural triphasé (PUHZ 22-25 kW);Modules;Module hydraulique intérieur;unité;3510;2480;purchase;;22-25;Module mural triphasé grande puissance · 950×600×360
+ERST17D-VM6BE;Module Ecodan Duo ECS intégrée 170L 2 zones — sol (SUZ-SWM / PUZ-SHWM 3-14 kW);Modules;Module hydraulique intérieur;unité;5070;3580;purchase;;3-14;Duo 170L bizone · sol 1,75m · 2 zones · acier inox · A+ ECS
+ERST20D-VM6E;Module Ecodan Duo ECS intégrée 200L — sol (pour SUZ-SWM Eco Inverter 3-10 kW);Modules;Module hydraulique intérieur;unité;5310;3750;purchase;;3-10;Duo 200L · sol 1,60m · acier inox · anti-tartre · A+ ECS
+ERST20F-VM6E;Module Ecodan Duo ECS intégrée 200L — sol (pour PUZ-SWM Power Inv / PUZ-SHWM ZUB mono);Modules;Module hydraulique intérieur;unité;5590;3950;purchase;;8-14;Duo 200L · sol 1,60m · échangeur F · 70°C · A+ ECS
+ERST20F-YM9E;Module Ecodan Duo ECS intégrée 200L — sol triphasé (pour PUZ-SHWM ZUB tri);Modules;Module hydraulique intérieur;unité;5780;4080;purchase;;8-14;Duo 200L triphasé · sol 1,60m · échangeur F · 70°C
+ERST30D-VM6EE;Module Ecodan Duo ECS intégrée 300L — sol (pour SUZ-SWM Eco Inverter 3-10 kW);Modules;Module hydraulique intérieur;unité;6480;4580;purchase;;3-10;Duo 300L · sol 2,05m · acier inox · A+ ECS
+ERST30F-VM6EE;Module Ecodan Duo ECS intégrée 300L — sol (pour PUZ-SWM Power Inv / PUZ-SHWM ZUB mono);Modules;Module hydraulique intérieur;unité;6760;4780;purchase;;8-14;Duo 300L · sol 2,05m · échangeur F · 70°C
+ERST30F-YM9EE;Module Ecodan Duo ECS intégrée 300L — sol triphasé (pour PUZ-SHWM ZUB tri);Modules;Module hydraulique intérieur;unité;7000;4950;purchase;;8-14;Duo 300L triphasé · sol 2,05m · échangeur F · 70°C
+ERPX-VM6E;Module hydraulique Ecodan hydrosplit chauffage seul — mural (pour PUZ-WM/WZ);Modules;Module hydraulique intérieur;unité;3230;2280;purchase;;5-12;Module mural hydrosplit · pas de liaisons frigorifiques
+ERPT20X-VM6E;Module Ecodan Duo hydrosplit ECS intégrée 200L — sol (pour PUZ-WM/WZ);Modules;Module hydraulique intérieur;unité;5920;4180;purchase;;5-12;Duo 200L hydrosplit · sol · pas de liaisons frigorifiques
+ERPT30X-VM6EE;Module Ecodan Duo hydrosplit ECS intégrée 300L — sol (pour PUZ-WM/WZ);Modules;Module hydraulique intérieur;unité;7000;4950;purchase;;5-12;Duo 300L hydrosplit · sol · pas de liaisons frigorifiques
+MAC-587IF-E;Interface Wi-Fi MELCloud Home — connectivité à distance Ecodan;Accessoires;Accessoires Ecodan;unité;248;175;purchase;;-;Pilotage smartphone/tablette · 5G compatible · MELCloud Home
+PAR-WT60R-E;Télécommande sans fil PAR-WT60R-E + récepteur PAR-WR61R-E;Accessoires;Accessoires Ecodan;forfait;298;210;purchase;;-;Télécommande déportée sans fil · 4 boutons · jusqu'à 8 par récepteur
+PAC-TH012HT-E;Sonde relève chaudière PAC-TH012HT-E 5m (pour modules avec relève);Accessoires;Accessoires Ecodan;unité;68;48;purchase;;-;Sonde départ/retour 5m · relève chaudière
+PAC-TH011-E;Sonde départ/retour et découplage PAC-TH011-E (1 jeu par zone);Accessoires;Accessoires Ecodan;unité;42;29;purchase;;-;Sonde zone · 1 jeu par zone de chauffage
+PAC-ISOECS2;Kit raccordement ECS PAC-ISOECS2;Accessoires;Accessoires Ecodan;unité;85;60;purchase;;-;Kit raccordement eau chaude sanitaire
