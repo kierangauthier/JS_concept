@@ -3,7 +3,14 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
+
+# Build configs : Vite + TypeScript + Tailwind/PostCSS + shadcn/ui.
+# Sans tailwind.config.ts ni postcss.config.js, Tailwind utilise sa config
+# par défaut (qui ne scanne rien) et purge TOUTES les classes du bundle final
+# → bundle CSS de 2 KB au lieu de ~100 KB. App rendue sans aucun style.
 COPY index.html vite.config.ts tsconfig*.json ./
+COPY tailwind.config.ts postcss.config.js components.json ./
+
 COPY public ./public/
 COPY src ./src/
 RUN npm run build
