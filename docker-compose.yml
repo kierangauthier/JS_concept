@@ -1,12 +1,32 @@
+# ─── ConceptManager — docker-compose paramétré ──────────────────────────────
+#
+# Ce compose est un TEMPLATE déployable pour toute instance ConceptManager
+# (démo dev, client prod, etc.). Toutes les valeurs spécifiques à l'instance
+# (slug, environnement, ports loopback) sont paramétrées via .env.
+#
+# Voir .env.example pour la liste complète des variables et docs/DEPLOYMENT.md
+# pour la procédure de déploiement d'une nouvelle instance.
+#
+# Conventions Acreed appliquées :
+# - name top-level explicite (incident 7 Session A 2026-04-27)
+# - Volumes nommés préfixés par PROJECT_SLUG (incident 9 Session A)
+# - Ports bindés sur 127.0.0.1 (loopback uniquement, dette UFW)
+# - Réseau externe acreed-{dev,prod,tools} selon DEPLOY_ENV
+#
+# ────────────────────────────────────────────────────────────────────────────
+
+name: cm-${PROJECT_SLUG:?PROJECT_SLUG must be set in .env}-${DEPLOY_ENV:?DEPLOY_ENV must be set in .env (dev|prod)}
+
 services:
   postgres:
+    container_name: cm-${PROJECT_SLUG}-db
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-concept_manager}
       POSTGRES_USER: ${POSTGRES_USER:-concept}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:?POSTGRES_HOST_PORT must be set in .env}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -16,23 +36,25 @@ services:
       retries: 5
 
   minio:
+    container_name: cm-${PROJECT_SLUG}-minio
     image: minio/minio:RELEASE.2024-11-07T00-52-20Z
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in .env}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:${MINIO_HOST_PORT:?MINIO_HOST_PORT must be set in .env}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_HOST_PORT:?MINIO_CONSOLE_HOST_PORT must be set in .env}:9001"
     volumes:
       - miniodata:/data
 
   api:
+    container_name: cm-${PROJECT_SLUG}-api
     build:
       context: ./api
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${API_HOST_PORT:?API_HOST_PORT must be set in .env}:3000"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       DATABASE_URL: postgresql://${POSTGRES_USER:-concept}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-concept_manager}
@@ -55,14 +77,22 @@ services:
         condition: service_started
 
   frontend:
+    container_name: cm-${PROJECT_SLUG}-frontend
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:80"
+      - "127.0.0.1:${FRONTEND_HOST_PORT:?FRONTEND_HOST_PORT must be set in .env}:80"
     depends_on:
       - api
 
 volumes:
   pgdata:
+    name: cm-${PROJECT_SLUG}-pgdata
   miniodata:
+    name: cm-${PROJECT_SLUG}-miniodata
+
+networks:
+  default:
+    name: ${ACREED_NETWORK:?ACREED_NETWORK must be set in .env (acreed-dev|acreed-prod|acreed-tools)}
+    external: true
