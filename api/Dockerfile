@@ -1,6 +1,12 @@
 FROM node:20-alpine AS builder
 
 WORKDIR /app
+
+# Prisma needs libssl 3.x runtime on Alpine 3.20+ for `prisma generate`
+# to load the correct query engine binary. See schema.prisma which
+# declares `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]`.
+RUN apk add --no-cache openssl
+
 COPY package*.json ./
 RUN npm ci
 COPY prisma ./prisma/
@@ -17,7 +23,7 @@ WORKDIR /app
 # AGPL v3 — we use it as an unmodified command-line tool from a backend
 # service, which does not trigger AGPL distribution obligations. See
 # docs/legal/FACTUR-X-roadmap.md for the licensing note.
-RUN apk add --no-cache ghostscript
+RUN apk add --no-cache ghostscript openssl
 
 # Copy build output with ownership set to the non-root `node` user that ships with
 # the base image. Running as non-root is a baseline hardening requirement.
