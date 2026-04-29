@@ -67,7 +67,6 @@ export default defineConfig(async ({ mode }) => ({
         background_color: '#ffffff',
         icons: [
           { src: '/icon-192.svg', sizes: 'any', type: 'image/svg+xml' },
-          { src: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
         ],
       },
     }),
