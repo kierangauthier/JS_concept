@@ -252,7 +252,6 @@ async function main() {
     prisma.catalogProduct.deleteMany({ where: { companyId: JS } }),
     prisma.catalogCategory.deleteMany({ where: { companyId: JS } }),
     prisma.timeEntry.deleteMany({ where: { companyId: JS } }),
-    prisma.invoiceLine.deleteMany({ where: { invoice: { companyId: JS } } }),
     prisma.invoice.deleteMany({ where: { companyId: JS } }),
     prisma.planningSlot.deleteMany({ where: { companyId: JS } }),
     prisma.teamPlanningSlot.deleteMany({ where: { week: { companyId: JS } } }),
@@ -398,8 +397,8 @@ async function main() {
         validUntil: addDays(startDate, 30),
         clientId, companyId: JS,
         lines: { create: [
-          { id: createId(), designation: title,                           unit: 'forfait', quantity: 1, unitPrice: inv1, vatRate: 20, sortOrder: 1 },
-          { id: createId(), designation: 'Main d\'œuvre et déplacements', unit: 'forfait', quantity: 1, unitPrice: inv2, vatRate: 20, sortOrder: 2 },
+          { id: createId(), designation: title,                           unit: 'forfait', quantity: 1, unitPrice: inv1, sortOrder: 1 },
+          { id: createId(), designation: 'Main d\'œuvre et déplacements', unit: 'forfait', quantity: 1, unitPrice: inv2, sortOrder: 2 },
         ]},
       },
     });
@@ -455,10 +454,8 @@ async function main() {
           issuedAt,
           dueDate: isOverdue ? d(2026,3,28) : dueDate,
           paidAt,
+          vatRate: 20,
           clientId, companyId: JS,
-          lines: { create: [
-            { id: createId(), designation: title, unit: 'forfait', quantity: 1, unitPrice: invAmt, vatRate: 20, sortOrder: 1 },
-          ]},
         },
       });
       totalInvoiced += invAmt;
@@ -479,8 +476,8 @@ async function main() {
       amount: 58400, status: 'sent', validUntil: d(2026,5,15),
       clientId: C.roannais, companyId: JS,
       lines: { create: [
-        { id: createId(), designation: 'Mobilier urbain lot 1', unit: 'forfait', quantity: 1, unitPrice: 36000, vatRate: 20, sortOrder: 1 },
-        { id: createId(), designation: 'Pose et scellements',   unit: 'forfait', quantity: 1, unitPrice: 22400, vatRate: 20, sortOrder: 2 },
+        { id: createId(), designation: 'Mobilier urbain lot 1', unit: 'forfait', quantity: 1, unitPrice: 36000, sortOrder: 1 },
+        { id: createId(), designation: 'Pose et scellements',   unit: 'forfait', quantity: 1, unitPrice: 22400, sortOrder: 2 },
       ]},
     },
   });
@@ -491,8 +488,8 @@ async function main() {
       amount: 34800, status: 'sent', validUntil: d(2026,5,30),
       clientId: C.sem, companyId: JS,
       lines: { create: [
-        { id: createId(), designation: 'Panneaux directionnels (42 + mâts)', unit: 'forfait', quantity: 1, unitPrice: 21000, vatRate: 20, sortOrder: 1 },
-        { id: createId(), designation: 'Pose et implantation',               unit: 'forfait', quantity: 1, unitPrice: 13800, vatRate: 20, sortOrder: 2 },
+        { id: createId(), designation: 'Panneaux directionnels (42 + mâts)', unit: 'forfait', quantity: 1, unitPrice: 21000, sortOrder: 1 },
+        { id: createId(), designation: 'Pose et implantation',               unit: 'forfait', quantity: 1, unitPrice: 13800, sortOrder: 2 },
       ]},
     },
   });
@@ -503,8 +500,8 @@ async function main() {
       amount: 42600, status: 'draft', validUntil: d(2026,5,25),
       clientId: C.sem, companyId: JS,
       lines: { create: [
-        { id: createId(), designation: 'Mobilier phase 3 (bancs, corbeilles, signalétique)', unit: 'forfait', quantity: 1, unitPrice: 28000, vatRate: 20, sortOrder: 1 },
-        { id: createId(), designation: 'Main d\'œuvre pose', unit: 'forfait', quantity: 1, unitPrice: 14600, vatRate: 20, sortOrder: 2 },
+        { id: createId(), designation: 'Mobilier phase 3 (bancs, corbeilles, signalétique)', unit: 'forfait', quantity: 1, unitPrice: 28000, sortOrder: 1 },
+        { id: createId(), designation: 'Main d\'œuvre pose', unit: 'forfait', quantity: 1, unitPrice: 14600, sortOrder: 2 },
       ]},
     },
   });
