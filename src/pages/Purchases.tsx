@@ -147,7 +147,7 @@ export default function Purchases() {
       </div>
 
       {purchases.length === 0 ? (
-        <EmptyState icon={ShoppingCart} title="Aucune commande" description="Cr\u00e9ez votre premi\u00e8re demande d'achat." />
+        <EmptyState icon={ShoppingCart} title="Aucune commande" description="Créez votre première demande d'achat." />
       ) : (
         <DataTable
           data={filtered}

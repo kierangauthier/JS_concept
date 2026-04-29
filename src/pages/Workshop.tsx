@@ -164,7 +164,7 @@ export default function Workshop() {
       </PageHeader>
 
       {allItems.length === 0 ? (
-        <EmptyState icon={Wrench} title="Aucune fabrication" description="Cr\u00e9ez votre premi\u00e8re fabrication pour suivre la production." />
+        <EmptyState icon={Wrench} title="Aucune fabrication" description="Créez votre première fabrication pour suivre la production." />
       ) : viewMode === 'kanban' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           {workshopStages.map(stage => (

@@ -295,7 +295,7 @@ export default function Invoicing() {
     )},
     { key: 'client', header: 'Client', sortable: true, accessor: (i) => i.clientName, render: (i) => <span>{i.clientName}</span> },
     { key: 'job', header: 'Chantier', render: (i) => <span className="text-xs font-mono text-muted-foreground">{i.jobRef || '\u2013'}</span> },
-    { key: 'amount', header: 'Montant', sortable: true, accessor: (i) => i.amount, render: (i) => <span className="font-medium">{i.amount.toLocaleString('fr-FR')} \u20ac</span> },
+    { key: 'amount', header: 'Montant', sortable: true, accessor: (i) => i.amount, render: (i) => <span className="font-medium">{i.amount.toLocaleString('fr-FR')} €</span> },
     { key: 'status', header: 'Statut', render: (i) => <StatusBadge type="invoice" status={i.status} /> },
     { key: 'issued', header: '\u00c9mission', sortable: true, accessor: (i) => i.issuedAt, render: (i) => <span className="text-xs text-muted-foreground">{new Date(i.issuedAt).toLocaleDateString('fr-FR')}</span> },
     { key: 'due', header: '\u00c9ch\u00e9ance', render: (i) => (
@@ -308,7 +308,7 @@ export default function Invoicing() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <PageHeader title="Facturation" subtitle="Chargement\u2026" action={{ label: 'Nouvelle facture', onClick: () => {} }} />
+        <PageHeader title="Facturation" subtitle="Chargement…" action={{ label: 'Nouvelle facture', onClick: () => {} }} />
         <div className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
       </div>
     );
@@ -325,16 +325,16 @@ export default function Invoicing() {
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-card rounded-lg border p-4">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Encaiss\u00e9</div>
-          <div className="text-xl font-bold text-success">{totalPaid.toLocaleString('fr-FR')} \u20ac</div>
+          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Encaissé</div>
+          <div className="text-xl font-bold text-success">{totalPaid.toLocaleString('fr-FR')} €</div>
         </div>
         <div className="bg-card rounded-lg border p-4">
           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">En attente</div>
-          <div className="text-xl font-bold text-warning">{totalPending.toLocaleString('fr-FR')} \u20ac</div>
+          <div className="text-xl font-bold text-warning">{totalPending.toLocaleString('fr-FR')} €</div>
         </div>
         <div className="bg-card rounded-lg border p-4">
           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Brouillons</div>
-          <div className="text-xl font-bold text-muted-foreground">{totalDraft.toLocaleString('fr-FR')} \u20ac</div>
+          <div className="text-xl font-bold text-muted-foreground">{totalDraft.toLocaleString('fr-FR')} €</div>
         </div>
       </div>
 
@@ -362,7 +362,7 @@ export default function Invoicing() {
       <DataTable
         data={filtered}
         columns={columns}
-        searchPlaceholder="Rechercher une facture\u2026"
+        searchPlaceholder="Rechercher une facture…"
         searchAccessor={(i) => `${i.reference} ${i.clientName} ${i.jobRef || ''}`}
         onRowClick={(i) => setSelectedInvoice(i)}
       />
@@ -437,12 +437,12 @@ export default function Invoicing() {
 
               {/* Summary */}
               <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                <div><div className="text-xs text-muted-foreground uppercase">Montant</div><div className="text-lg font-bold">{selectedInvoice.amount.toLocaleString('fr-FR')} \u20ac</div></div>
+                <div><div className="text-xs text-muted-foreground uppercase">Montant</div><div className="text-lg font-bold">{selectedInvoice.amount.toLocaleString('fr-FR')} €</div></div>
                 <div><div className="text-xs text-muted-foreground uppercase">Chantier</div><div className="font-medium font-mono">{selectedInvoice.jobRef || '\u2013'}</div></div>
-                <div><div className="text-xs text-muted-foreground uppercase">\u00c9mission</div><div className="font-medium">{new Date(selectedInvoice.issuedAt).toLocaleDateString('fr-FR')}</div></div>
-                <div><div className="text-xs text-muted-foreground uppercase">\u00c9ch\u00e9ance</div><div className={`font-medium ${selectedInvoice.status === 'overdue' ? 'text-destructive' : ''}`}>{new Date(selectedInvoice.dueDate).toLocaleDateString('fr-FR')}</div></div>
+                <div><div className="text-xs text-muted-foreground uppercase">Émission</div><div className="font-medium">{new Date(selectedInvoice.issuedAt).toLocaleDateString('fr-FR')}</div></div>
+                <div><div className="text-xs text-muted-foreground uppercase">Échéance</div><div className={`font-medium ${selectedInvoice.status === 'overdue' ? 'text-destructive' : ''}`}>{new Date(selectedInvoice.dueDate).toLocaleDateString('fr-FR')}</div></div>
                 {selectedInvoice.paidAt && (
-                  <div><div className="text-xs text-muted-foreground uppercase">Pay\u00e9e le</div><div className="font-medium text-success">{new Date(selectedInvoice.paidAt).toLocaleDateString('fr-FR')}</div></div>
+                  <div><div className="text-xs text-muted-foreground uppercase">Payée le</div><div className="font-medium text-success">{new Date(selectedInvoice.paidAt).toLocaleDateString('fr-FR')}</div></div>
                 )}
               </div>
 
@@ -451,7 +451,7 @@ export default function Invoicing() {
                   <TabsTrigger value="situations" className="text-xs">Situations ({invoiceSituations.length})</TabsTrigger>
                   <TabsTrigger value="reminders" className="text-xs">Relances ({reminderLogs.length})</TabsTrigger>
                   <TabsTrigger value="files" className="text-xs">Documents</TabsTrigger>
-                  <TabsTrigger value="activity" className="text-xs">Activit\u00e9</TabsTrigger>
+                  <TabsTrigger value="activity" className="text-xs">Activité</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="situations" className="mt-3">
@@ -462,7 +462,7 @@ export default function Invoicing() {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label htmlFor="sit-pct">Avancement cumul\u00e9 (%)</Label>
+                          <Label htmlFor="sit-pct">Avancement cumulé (%)</Label>
                           <Input
                             id="sit-pct"
                             type="number"
@@ -475,7 +475,7 @@ export default function Invoicing() {
                           />
                           {lastSituationPct > 0 && (
                             <p className="text-[10px] text-muted-foreground">
-                              Situation pr\u00e9c\u00e9dente : {lastSituationPct}%
+                              Situation précédente : {lastSituationPct}%
                             </p>
                           )}
                         </div>
@@ -494,10 +494,10 @@ export default function Invoicing() {
                       {sitPreviewAmount > 0 && (
                         <div className="bg-card border rounded-md p-3">
                           <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                            <span>Delta : {(sitPreviewPct - lastSituationPct).toFixed(2)}% de {selectedInvoice.amount.toLocaleString('fr-FR')} \u20ac</span>
+                            <span>Delta : {(sitPreviewPct - lastSituationPct).toFixed(2)}% de {selectedInvoice.amount.toLocaleString('fr-FR')} €</span>
                           </div>
                           <div className="text-lg font-bold">
-                            {sitPreviewAmount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} \u20ac
+                            {sitPreviewAmount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                           </div>
                         </div>
                       )}
@@ -508,7 +508,7 @@ export default function Invoicing() {
                           id="sit-desc"
                           value={sitDescription}
                           onChange={e => setSitDescription(e.target.value)}
-                          placeholder="Travaux r\u00e9alis\u00e9s, observations..."
+                          placeholder="Travaux réalisés, observations..."
                           rows={2}
                         />
                       </div>
@@ -532,9 +532,9 @@ export default function Invoicing() {
 
                   {invoiceSituations.length === 0 && !sitFormOpen ? (
                     <div className="text-center py-6">
-                      <p className="text-sm text-muted-foreground">Aucune situation de travaux enregistr\u00e9e</p>
+                      <p className="text-sm text-muted-foreground">Aucune situation de travaux enregistrée</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Cr\u00e9ez des situations pour facturer progressivement l'avancement du chantier.
+                        Créez des situations pour facturer progressivement l'avancement du chantier.
                       </p>
                     </div>
                   ) : (
@@ -542,11 +542,11 @@ export default function Invoicing() {
                       {/* Situations table header */}
                       {invoiceSituations.length > 0 && (
                         <div className="grid grid-cols-12 gap-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-1">
-                          <div className="col-span-1">N\u00b0</div>
+                          <div className="col-span-1">N°</div>
                           <div className="col-span-3">Date</div>
                           <div className="col-span-1 text-right">%</div>
                           <div className="col-span-3 text-right">Montant</div>
-                          <div className="col-span-2 text-right">Cumul\u00e9</div>
+                          <div className="col-span-2 text-right">Cumulé</div>
                           <div className="col-span-2 text-right">Statut</div>
                         </div>
                       )}
@@ -561,10 +561,10 @@ export default function Invoicing() {
                             </div>
                             <div className="col-span-1 text-right font-medium text-xs">{sit.percentage}%</div>
                             <div className="col-span-3 text-right font-medium">
-                              {sit.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} \u20ac
+                              {sit.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
                             </div>
                             <div className="col-span-2 text-right text-xs text-muted-foreground">
-                              {(sit.cumulativeAmount ?? sit.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} \u20ac
+                              {(sit.cumulativeAmount ?? sit.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
                             </div>
                             <div className="col-span-2 text-right">
                               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
@@ -610,15 +610,15 @@ export default function Invoicing() {
                       {invoiceSituations.length > 0 && (
                         <div className="border-t pt-3 mt-2 space-y-1">
                           <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Total factur\u00e9</span>
+                            <span className="text-muted-foreground">Total facturé</span>
                             <span className="font-bold">
-                              {invoiceSituations.reduce((s, sit) => s + sit.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} \u20ac
+                              {invoiceSituations.reduce((s, sit) => s + sit.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Reste \u00e0 facturer</span>
+                            <span className="text-muted-foreground">Reste à facturer</span>
                             <span className="font-medium text-muted-foreground">
-                              {(selectedInvoice.amount - invoiceSituations.reduce((s, sit) => s + sit.amount, 0)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} \u20ac
+                              {(selectedInvoice.amount - invoiceSituations.reduce((s, sit) => s + sit.amount, 0)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
                             </span>
                           </div>
                           <div className="flex justify-between text-xs">
@@ -719,7 +719,7 @@ export default function Invoicing() {
               <Label htmlFor="inv-client">Client</Label>
               <Select value={formClientId} onValueChange={setFormClientId}>
                 <SelectTrigger id="inv-client">
-                  <SelectValue placeholder="S\u00e9lectionnez un client" />
+                  <SelectValue placeholder="Sélectionnez un client" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Aucun</SelectItem>
@@ -734,12 +734,12 @@ export default function Invoicing() {
               <Label htmlFor="inv-job">Chantier</Label>
               <Select value={formJobId} onValueChange={setFormJobId}>
                 <SelectTrigger id="inv-job">
-                  <SelectValue placeholder="S\u00e9lectionnez un chantier" />
+                  <SelectValue placeholder="Sélectionnez un chantier" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Aucun</SelectItem>
                   {jobs.map(j => (
-                    <SelectItem key={j.id} value={j.id}>{j.reference} \u2014 {j.title}</SelectItem>
+                    <SelectItem key={j.id} value={j.id}>{j.reference} — {j.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -752,11 +752,11 @@ export default function Invoicing() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="inv-issued">\u00c9mission *</Label>
+                <Label htmlFor="inv-issued">Émission *</Label>
                 <Input id="inv-issued" type="date" value={formIssuedAt} onChange={e => setFormIssuedAt(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="inv-due">\u00c9ch\u00e9ance *</Label>
+                <Label htmlFor="inv-due">Échéance *</Label>
                 <Input id="inv-due" type="date" value={formDueDate} onChange={e => setFormDueDate(e.target.value)} />
               </div>
             </div>
