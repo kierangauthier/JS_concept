@@ -18,6 +18,7 @@ import Invoicing from "./pages/Invoicing";
 import AdminPage from "./pages/AdminPage";
 import ImportData from "./pages/ImportData";
 import Catalog from "./pages/Catalog";
+import TimeEntries from "./pages/TimeEntries";
 import TimeValidation from "./pages/TimeValidation";
 import Absences from "./pages/Absences";
 import Reports from "./pages/Reports";
@@ -111,6 +112,7 @@ const App = () => (
             <Route path="/workshop" element={<Workshop />} />
             <Route path="/invoicing" element={<Invoicing />} />
             <Route path="/catalog" element={<Catalog />} />
+            <Route path="/time-entries" element={<TimeEntries />} />
             <Route path="/time-validation" element={<TimeValidation />} />
             <Route path="/absences" element={<Absences />} />
             <Route path="/reports" element={<Reports />} />
