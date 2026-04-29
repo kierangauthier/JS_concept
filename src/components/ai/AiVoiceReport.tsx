@@ -85,7 +85,7 @@ export default function AiVoiceReport({ open, onClose, jobId, jobTitle, currentP
     setError(null);
     setLoading(true);
     try {
-      const res = await api.post<VoiceResult>('/api/ai/voice-report', {
+      const res = await api.post<VoiceResult>('/ai/voice-report', {
         transcript,
         jobId,
         date: new Date().toISOString(),
