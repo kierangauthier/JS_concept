@@ -111,7 +111,7 @@ export function CashflowWidget() {
                   <div key={b.jobRef} className="flex items-center gap-1">
                     <span>{CONFIDENCE_BADGE[b.confidence].dot}</span>
                     <span className="font-mono">{b.jobRef}</span>
-                    <span>({fmtK(b.remainingToInvoice)} \u20ac)</span>
+                    <span>({fmtK(b.remainingToInvoice)} €)</span>
                     <span className={`${CONFIDENCE_BADGE[b.confidence].class}`}>
                       — {CONFIDENCE_BADGE[b.confidence].label.toLowerCase()} confiance
                     </span>

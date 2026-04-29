@@ -367,7 +367,7 @@ export default function Quotes() {
       </PageHeader>
 
       {quotes.length === 0 ? (
-        <EmptyState icon={FileTextIcon} title="Aucun devis" description="Cr\u00e9ez votre premier devis pour commencer." />
+        <EmptyState icon={FileTextIcon} title="Aucun devis" description="Créez votre premier devis pour commencer." />
       ) : viewMode === 'kanban' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {kanbanColumns.map(col => (

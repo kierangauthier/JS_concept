@@ -98,7 +98,7 @@ export function SyncStatusBar() {
           <>Synchronisation... {syncStatus.progress}/{syncStatus.total}</>
         )}
         {isOnline && syncStatus.state === 'synced' && (
-          <>En ligne \u00b7 Tout synchronise</>
+          <>En ligne · Tout synchronise</>
         )}
         {isOnline && syncStatus.state === 'error' && (
           <>{plural(pendingCount, 'echec')}</>

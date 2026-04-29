@@ -211,7 +211,7 @@ export default function Jobs() {
       </PageHeader>
 
       {jobs.length === 0 ? (
-        <EmptyState icon={HardHat} title="Aucun chantier" description="Cr\u00e9ez votre premier chantier ou convertissez un devis accept\u00e9." />
+        <EmptyState icon={HardHat} title="Aucun chantier" description="Créez votre premier chantier ou convertissez un devis accepté." />
       ) : viewMode === 'table' ? (
         <DataTable
           data={jobs}
