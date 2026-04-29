@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Req, ForbiddenException, NotFoundException, ConflictException } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -205,6 +206,7 @@ export class UsersController {
 
   @Patch(':id/reset-password')
   @Roles('admin')
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
   async resetPassword(
     @Param('id') id: string,
     @Body() body: { password: string },

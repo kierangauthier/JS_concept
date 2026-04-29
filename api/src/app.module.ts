@@ -45,11 +45,10 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
 @Module({
   imports: [
     ThrottlerModule.forRoot([
-      // Default bucket for authenticated traffic
-      { name: 'default', ttl: 60_000, limit: 100 },
-      // Hardened bucket for unauthenticated auth endpoints (login, refresh, forgot, reset).
-      // 5 attempts per 5 minutes per IP mitigates credential stuffing and brute force.
-      { name: 'auth', ttl: 300_000, limit: 5 },
+      // Single global bucket for all authenticated traffic (100 req/min/IP).
+      // Sensitive endpoints (login, refresh, password reset, GDPR export/erase)
+      // override this locally via @Throttle({ default: { limit, ttl } }).
+      { ttl: 60_000, limit: 100 },
     ]),
     PrismaModule,
     AntivirusModule,
