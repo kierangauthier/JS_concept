@@ -76,7 +76,7 @@ export default function AiProactiveAlerts() {
   async function loadAlerts() {
     setLoading(true);
     try {
-      const d = await api.get<AlertsResponse>('/api/ai/proactive-alerts');
+      const d = await api.get<AlertsResponse>('/ai/proactive-alerts');
       setData(d.data);
     } catch (e) {
       console.error('[ProactiveAlerts]', e);

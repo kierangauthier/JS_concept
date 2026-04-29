@@ -103,7 +103,7 @@ export default function AiSizingWizard({ open, onClose, onApply }: Props) {
     setError(null);
     setLoading(true);
     try {
-      const res = await api.post<SizingResult>('/api/ai/size-and-quote', {
+      const res = await api.post<SizingResult>('/ai/size-and-quote', {
         surface: Number(form.surface),
         anneeConstruction: Number(form.anneeConstruction),
         departement: form.departement,
