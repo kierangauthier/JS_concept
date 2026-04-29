@@ -160,6 +160,7 @@ export interface NavItem {
   icon: string;
   roles: UserRole[];
   group?: string; // section label displayed above the first item of each group
+  comingSoon?: boolean; // displays a "Bientôt" badge and disables navigation
 }
 
 export const navItems: NavItem[] = [
@@ -195,7 +196,7 @@ export const navItems: NavItem[] = [
   { title: 'Paramètres',         path: '/admin',          icon: 'Settings',        roles: ['admin'] },
 
   // ─── Assistant IA (bas de sidebar) ───────────────────────────────────────
-  { title: 'Assistant IA',       path: '/assistant',      icon: 'Sparkles',        roles: ['admin', 'conducteur', 'comptable', 'collaborateur'], group: '─' },
+  { title: 'Assistant IA',       path: '/assistant',      icon: 'Sparkles',        roles: ['admin', 'conducteur', 'comptable', 'collaborateur'], group: '─', comingSoon: true },
 ];
 
 export function getNavForRole(role: UserRole): NavItem[] {

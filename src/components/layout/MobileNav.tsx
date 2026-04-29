@@ -26,6 +26,18 @@ export function MobileNav() {
       {navItems.map(item => {
         const Icon = iconMap[item.icon] || LayoutDashboard;
         const isActive = location.pathname === item.path;
+        if (item.comingSoon) {
+          return (
+            <div
+              key={item.path}
+              aria-disabled="true"
+              className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground opacity-60 cursor-not-allowed"
+            >
+              <Icon className="h-5 w-5" />
+              <span>{item.title}</span>
+            </div>
+          );
+        }
         return (
           <Link
             key={item.path}

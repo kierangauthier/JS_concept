@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 const SIDEBAR_COLLAPSED_KEY = 'cm_sidebar_collapsed';
 
@@ -109,7 +110,27 @@ export function AppSidebar() {
                   const isActive =
                     location.pathname === item.path ||
                     (item.path !== '/' && location.pathname.startsWith(item.path + '/'));
-                  const linkEl = (
+                  // Items marked `comingSoon` render as a non-clickable disabled item
+                  // with a "Bientôt" badge. Used for features whose backend is in roadmap
+                  // (e.g. Assistant IA pending sovereign LLM rollout).
+                  const itemEl = item.comingSoon ? (
+                    <div
+                      key={item.path}
+                      role="link"
+                      aria-disabled="true"
+                      tabIndex={-1}
+                      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium cursor-not-allowed opacity-60"
+                      style={{ color: 'hsl(var(--sidebar-fg))' }}
+                    >
+                      <Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+                      {!collapsed && (
+                        <>
+                          <span className="truncate">{item.title}</span>
+                          <Badge variant="secondary" className="ml-auto text-xs">Bientôt</Badge>
+                        </>
+                      )}
+                    </div>
+                  ) : (
                     <Link
                       key={item.path}
                       to={item.path}
@@ -126,11 +147,13 @@ export function AppSidebar() {
                       {!collapsed && <span className="truncate">{item.title}</span>}
                     </Link>
                   );
-                  if (!collapsed) return linkEl;
+                  if (!collapsed) return itemEl;
                   return (
                     <Tooltip key={item.path}>
-                      <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
-                      <TooltipContent side="right">{item.title}</TooltipContent>
+                      <TooltipTrigger asChild>{itemEl}</TooltipTrigger>
+                      <TooltipContent side="right">
+                        {item.title}{item.comingSoon ? ' — Bientôt' : ''}
+                      </TooltipContent>
                     </Tooltip>
                   );
                 })}
