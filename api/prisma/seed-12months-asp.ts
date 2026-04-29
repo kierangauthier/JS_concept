@@ -249,7 +249,6 @@ async function main() {
     prisma.catalogProduct.deleteMany({ where: { companyId: ASP } }),
     prisma.catalogCategory.deleteMany({ where: { companyId: ASP } }),
     prisma.timeEntry.deleteMany({ where: { companyId: ASP } }),
-    prisma.invoiceLine.deleteMany({ where: { invoice: { companyId: ASP } } }),
     prisma.invoice.deleteMany({ where: { companyId: ASP } }),
     prisma.planningSlot.deleteMany({ where: { companyId: ASP } }),
     prisma.teamPlanningSlot.deleteMany({ where: { week: { companyId: ASP } } }),
@@ -397,8 +396,8 @@ async function main() {
         validUntil: addDays(startDate, 30),
         clientId, companyId: ASP,
         lines: { create: [
-          { id: createId(), designation: title,                           unit: 'forfait', quantity: 1, unitPrice: inv1, vatRate: 20, sortOrder: 1 },
-          { id: createId(), designation: 'Main d\'œuvre et déplacements', unit: 'forfait', quantity: 1, unitPrice: inv2, vatRate: 20, sortOrder: 2 },
+          { id: createId(), designation: title,                           unit: 'forfait', quantity: 1, unitPrice: inv1, sortOrder: 1 },
+          { id: createId(), designation: 'Main d\'œuvre et déplacements', unit: 'forfait', quantity: 1, unitPrice: inv2, sortOrder: 2 },
         ]},
       },
     });
@@ -451,10 +450,8 @@ async function main() {
           issuedAt,
           dueDate: isOverdue ? d(2026,3,20) : dueDate,
           paidAt,
+          vatRate: 20,
           clientId, companyId: ASP,
-          lines: { create: [
-            { id: createId(), designation: title, unit: 'forfait', quantity: 1, unitPrice: invAmt, vatRate: 20, sortOrder: 1 },
-          ]},
         },
       });
       totalInvoiced += invAmt;
@@ -475,8 +472,8 @@ async function main() {
       amount: 68400, status: 'sent', validUntil: d(2026,5,20),
       clientId: C.grandlyon, companyId: ASP,
       lines: { create: [
-        { id: createId(), designation: 'Signalisation verticale VL3 & VL6 (panneaux + mâts)', unit: 'forfait', quantity: 1, unitPrice: 42000, vatRate: 20, sortOrder: 1 },
-        { id: createId(), designation: 'Marquage au sol + pose',                                unit: 'forfait', quantity: 1, unitPrice: 26400, vatRate: 20, sortOrder: 2 },
+        { id: createId(), designation: 'Signalisation verticale VL3 & VL6 (panneaux + mâts)', unit: 'forfait', quantity: 1, unitPrice: 42000, sortOrder: 1 },
+        { id: createId(), designation: 'Marquage au sol + pose',                                unit: 'forfait', quantity: 1, unitPrice: 26400, sortOrder: 2 },
       ]},
     },
   });
@@ -487,8 +484,8 @@ async function main() {
       amount: 54200, status: 'sent', validUntil: d(2026,5,31),
       clientId: C.dir, companyId: ASP,
       lines: { create: [
-        { id: createId(), designation: 'Balisage longue durée lot 2 (GBA + signalétique)', unit: 'forfait', quantity: 1, unitPrice: 36000, vatRate: 20, sortOrder: 1 },
-        { id: createId(), designation: 'Maintien et entretien dispositifs',                 unit: 'forfait', quantity: 1, unitPrice: 18200, vatRate: 20, sortOrder: 2 },
+        { id: createId(), designation: 'Balisage longue durée lot 2 (GBA + signalétique)', unit: 'forfait', quantity: 1, unitPrice: 36000, sortOrder: 1 },
+        { id: createId(), designation: 'Maintien et entretien dispositifs',                 unit: 'forfait', quantity: 1, unitPrice: 18200, sortOrder: 2 },
       ]},
     },
   });
@@ -499,8 +496,8 @@ async function main() {
       amount: 38800, status: 'draft', validUntil: d(2026,5,28),
       clientId: C.bourg, companyId: ASP,
       lines: { create: [
-        { id: createId(), designation: 'Panneaux directionnels D42 + implantation', unit: 'forfait', quantity: 1, unitPrice: 24000, vatRate: 20, sortOrder: 1 },
-        { id: createId(), designation: 'Main d\'œuvre pose et géoréférencement',    unit: 'forfait', quantity: 1, unitPrice: 14800, vatRate: 20, sortOrder: 2 },
+        { id: createId(), designation: 'Panneaux directionnels D42 + implantation', unit: 'forfait', quantity: 1, unitPrice: 24000, sortOrder: 1 },
+        { id: createId(), designation: 'Main d\'œuvre pose et géoréférencement',    unit: 'forfait', quantity: 1, unitPrice: 14800, sortOrder: 2 },
       ]},
     },
   });
