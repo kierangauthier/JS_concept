@@ -546,90 +546,118 @@ async function main() {
   }
   console.log('  ✓ Atelier : 3 ordres de fabrication');
 
-  // ─── 9. PLANNING SEMAINE EN COURS ──────────────────────────────────────────
-  const week = await prisma.teamPlanningWeek.create({
-    data: {
-      id: 'w_asp_demo', weekStart: d(2026,4,20),
-      status: TeamPlanningStatus.draft, version: 1,
-      companyId: ASP,
-    },
-  });
+  // ─── 9. PLANNING — couverture complète semaine par semaine ─────────────────
+  // Reconstruit la fenêtre [start, end] de chaque chantier (même logique que la
+  // section 6 : startDay = (jSeq % 20) + 1, capé à 24, durée = durationDays).
+  // Puis pour chaque semaine ISO entre mai 2025 et avril 2026, crée une
+  // teamPlanningWeek + slots Lun-Ven pour chaque équipe ayant un chantier actif
+  // cette semaine (intersection [chantier.start, chantier.end] ∩ [lundi, vendredi]).
 
-  if (a7Job && a432Job) {
-    await prisma.teamPlanningSlot.createMany({
-      data: [
-        { weekId: week.id, teamId: TEAMS.b, date: d(2026,4,21), startHour: 6, endHour: 14, jobId: a7Job.id, notes: 'Mise en place GBA lot 1 — travaux nuit prévue jeudi' },
-        { weekId: week.id, teamId: TEAMS.b, date: d(2026,4,22), startHour: 6, endHour: 14, jobId: a7Job.id },
-        { weekId: week.id, teamId: TEAMS.b, date: d(2026,4,23), startHour: 6, endHour: 14, jobId: a7Job.id },
-        { weekId: week.id, teamId: TEAMS.b, date: d(2026,4,24), startHour: 21,endHour: 5,  jobId: a7Job.id, notes: 'Intervention nuit — fermeture voie D' },
-        { weekId: week.id, teamId: TEAMS.d, date: d(2026,4,21), startHour: 7, endHour: 17, jobId: a432Job.id, notes: 'Pose signalisation provisoire — phase 3 ouverture' },
-        { weekId: week.id, teamId: TEAMS.d, date: d(2026,4,22), startHour: 7, endHour: 17, jobId: a432Job.id },
-        { weekId: week.id, teamId: TEAMS.d, date: d(2026,4,23), startHour: 7, endHour: 17, jobId: a432Job.id },
-      ],
+  const getMonday = (date: Date): Date => {
+    const d2 = new Date(date);
+    const day = d2.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d2.setDate(d2.getDate() + diff);
+    d2.setHours(0, 0, 0, 0);
+    return d2;
+  };
+
+  type ChantierWindow = {
+    title: string;
+    start: Date;
+    end: Date;
+    teamId: string;
+    jobId: string;
+  };
+  const chantierWindows: ChantierWindow[] = [];
+  let jSeq2 = 1;
+  for (const ch of CHANTIERS) {
+    const [year, month, , title, , , durationDays, teamKey] = ch;
+    const startDay = ((jSeq2 % 20) * 1) + 1;
+    const start = d(year, month, Math.min(startDay, 24));
+    const end = addDays(start, durationDays);
+    chantierWindows.push({
+      title,
+      start,
+      end,
+      teamId: TEAMS[teamKey as keyof typeof TEAMS],
+      jobId: `j_asp_${year}_${month}_${jSeq2}`,
     });
+    jSeq2++;
   }
-  console.log('  ✓ Planning semaine en cours');
 
-  // ─── 10. PLANNING HISTORIQUE (11 semaines passées, 1 par mois) ─────────────
-  const historicalMonths = [
-    { id: 'w_asp_2025_05', weekStart: d(2025,5,5),  year: 2025, month: 5  },
-    { id: 'w_asp_2025_06', weekStart: d(2025,6,2),  year: 2025, month: 6  },
-    { id: 'w_asp_2025_07', weekStart: d(2025,7,7),  year: 2025, month: 7  },
-    { id: 'w_asp_2025_08', weekStart: d(2025,8,4),  year: 2025, month: 8  },
-    { id: 'w_asp_2025_09', weekStart: d(2025,9,1),  year: 2025, month: 9  },
-    { id: 'w_asp_2025_10', weekStart: d(2025,10,6), year: 2025, month: 10 },
-    { id: 'w_asp_2025_11', weekStart: d(2025,11,3), year: 2025, month: 11 },
-    { id: 'w_asp_2025_12', weekStart: d(2025,12,1), year: 2025, month: 12 },
-    { id: 'w_asp_2026_01', weekStart: d(2026,1,5),  year: 2026, month: 1  },
-    { id: 'w_asp_2026_02', weekStart: d(2026,2,2),  year: 2026, month: 2  },
-    { id: 'w_asp_2026_03', weekStart: d(2026,3,2),  year: 2026, month: 3  },
-  ];
+  const seedStart = getMonday(d(2025, 5, 5));
+  const seedEnd   = getMonday(d(2026, 4, 27));
+  const todayMonday = getMonday(now);
 
-  for (const { id, weekStart, year, month } of historicalMonths) {
-    const nextMonth = month === 12 ? 1 : month + 1;
-    const nextYear  = month === 12 ? year + 1 : year;
+  let weeksCreated = 0;
+  let totalTeamSlots = 0;
+  let totalPSlots = 0;
+
+  for (let weekStart = new Date(seedStart); weekStart <= seedEnd; weekStart = addDays(weekStart, 7)) {
+    const weekEnd = addDays(weekStart, 4);
+    const isPast = weekEnd < todayMonday;
+
+    const weekId = `w_asp_${weekStart.getFullYear()}_${String(weekStart.getMonth() + 1).padStart(2, '0')}_${String(weekStart.getDate()).padStart(2, '0')}`;
+
     const hw = await prisma.teamPlanningWeek.create({
-      data: { id, weekStart, status: TeamPlanningStatus.locked, version: 1, companyId: ASP },
+      data: {
+        id: weekId,
+        weekStart: new Date(weekStart),
+        status: isPast ? TeamPlanningStatus.locked : TeamPlanningStatus.draft,
+        version: 1,
+        companyId: ASP,
+      },
     });
+
     const tSlots: any[] = [];
     const pSlots: any[] = [];
-    for (const [, teamId] of Object.entries(TEAMS)) {
-      const members = teamMembers[teamId];
-      const job = await prisma.job.findFirst({
-        where: {
-          companyId: ASP,
-          startDate: { gte: d(year, month, 1), lt: d(nextYear, nextMonth, 1) },
-          assignments: { some: { userId: members[0] } },
-        },
-      });
-      if (!job) continue;
-      for (let i = 0; i < 5; i++) {
-        const date = addDays(weekStart, i);
-        tSlots.push({ weekId: hw.id, teamId, date, startHour: 7, endHour: 17, jobId: job.id });
-        for (const userId of members) {
-          pSlots.push({ id: createId(), date, userId, jobId: job.id, companyId: ASP });
+
+    for (const teamId of Object.values(TEAMS)) {
+      const activeChantier = chantierWindows.find(c =>
+        c.teamId === teamId &&
+        c.start <= weekEnd &&
+        c.end   >= weekStart
+      );
+      if (!activeChantier) continue;
+
+      const slotStart = activeChantier.start > weekStart ? activeChantier.start : weekStart;
+      const slotEnd   = activeChantier.end   < weekEnd   ? activeChantier.end   : weekEnd;
+
+      for (let day = new Date(slotStart); day <= slotEnd; day = addDays(day, 1)) {
+        const dow = day.getDay();
+        if (dow === 0 || dow === 6) continue;
+
+        tSlots.push({
+          weekId: hw.id,
+          teamId,
+          date: new Date(day),
+          startHour: 7,
+          endHour: 17,
+          jobId: activeChantier.jobId,
+        });
+
+        for (const userId of teamMembers[teamId]) {
+          pSlots.push({
+            id: createId(),
+            date: new Date(day),
+            userId,
+            jobId: activeChantier.jobId,
+            companyId: ASP,
+          });
         }
       }
     }
+
     if (tSlots.length > 0) await prisma.teamPlanningSlot.createMany({ data: tSlots });
     if (pSlots.length > 0) await prisma.planningSlot.createMany({ data: pSlots });
+
+    weeksCreated++;
+    totalTeamSlots += tSlots.length;
+    totalPSlots += pSlots.length;
   }
 
-  // PlanningSlot semaine en cours — A7 et A432
-  if (a7Job && a432Job) {
-    const pSlotsApril: any[] = [];
-    for (let i = 0; i < 4; i++) {
-      const date = addDays(d(2026,4,21), i);
-      for (const uid of teamMembers[TEAMS.b]) {
-        pSlotsApril.push({ id: createId(), date, userId: uid, jobId: a7Job.id, companyId: ASP });
-      }
-      for (const uid of teamMembers[TEAMS.d]) {
-        pSlotsApril.push({ id: createId(), date, userId: uid, jobId: a432Job.id, companyId: ASP });
-      }
-    }
-    if (pSlotsApril.length > 0) await prisma.planningSlot.createMany({ data: pSlotsApril });
-  }
-  console.log('  ✓ Planning historique : 11 semaines + PlanningSlots');
+  console.log(`  ✓ Planning : ${weeksCreated} semaines, ${totalTeamSlots} team slots, ${totalPSlots} planning slots individuels`);
 
   // ─── RÉCAP ─────────────────────────────────────────────────────────────────
   console.log('');
