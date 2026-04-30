@@ -33,6 +33,11 @@ export class JobsService {
       startDate: j.startDate.toISOString(),
       endDate: j.endDate?.toISOString() ?? null,
       progress: j.progress,
+      hourlyRate: j.hourlyRate != null ? Number(j.hourlyRate) : null,
+      estimatedHours: j.estimatedHours != null ? Number(j.estimatedHours) : null,
+      responsableId: j.responsableId ?? null,
+      responsableName: j.responsable?.name ?? null,
+      notes: j.notes ?? null,
       assignedTo: (j.assignments ?? []).map((a: any) => a.user?.name ?? ''),
     };
   }
@@ -41,6 +46,7 @@ export class JobsService {
     company: { select: { code: true } },
     quote: { select: { client: { select: { name: true } } } },
     assignments: { include: { user: { select: { name: true, id: true } } } },
+    responsable: { select: { id: true, name: true } },
   };
 
   async findAll(
@@ -136,6 +142,10 @@ export class JobsService {
           quoteId: dto.quoteId,
           clientId: dto.clientId,
           companyId,
+          hourlyRate: dto.hourlyRate ?? undefined,
+          estimatedHours: dto.estimatedHours ?? undefined,
+          responsableId: dto.responsableId ?? undefined,
+          notes: dto.notes ?? undefined,
           assignments: dto.assignedUserIds
             ? { create: dto.assignedUserIds.map((uid) => ({ userId: uid })) }
             : undefined,

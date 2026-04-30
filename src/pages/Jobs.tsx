@@ -21,7 +21,7 @@ import { List, CalendarDays, FileDown, Users, Camera, Clock, ShoppingCart, FileT
 import { EmptyState } from '@/components/shared/EmptyState';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useJobs, useJobDetail, useQuotes, useCreateJob, useUpdateJob, useUpdateJobStatus, useActivityLogs, useAttachments, useJobMargin, usePurchases } from '@/services/api/hooks';
+import { useJobs, useJobDetail, useQuotes, useCreateJob, useUpdateJob, useUpdateJobStatus, useActivityLogs, useAttachments, useJobMargin, usePurchases, useUsers } from '@/services/api/hooks';
 import { CreateJobPayload } from '@/services/api/jobs.api';
 
 const STATUS_ACTIONS: Partial<Record<Job['status'], { label: string; next: Job['status']; variant?: 'default' | 'destructive' | 'outline' }[]>> = {
@@ -76,6 +76,8 @@ export default function Jobs() {
   const [formQuoteId, setFormQuoteId] = useState('');
   const [formHourlyRate, setFormHourlyRate] = useState('');
   const [formEstimatedHours, setFormEstimatedHours] = useState('');
+  const [formResponsableId, setFormResponsableId] = useState('');
+  const [formNotes, setFormNotes] = useState('');
   const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
   const [formBaseline, setFormBaseline] = useState<unknown>(null);
 
@@ -85,8 +87,9 @@ export default function Jobs() {
       startDate: formStartDate, endDate: formEndDate,
       quoteId: formQuoteId, hourlyRate: formHourlyRate,
       estimatedHours: formEstimatedHours,
+      responsableId: formResponsableId, notes: formNotes,
     }),
-    [formTitle, formAddress, formStartDate, formEndDate, formQuoteId, formHourlyRate, formEstimatedHours],
+    [formTitle, formAddress, formStartDate, formEndDate, formQuoteId, formHourlyRate, formEstimatedHours, formResponsableId, formNotes],
   );
   const { guardClose: guardCloseForm } = useFormGuard(
     formValuesForGuard,
@@ -107,6 +110,11 @@ export default function Jobs() {
   const createMutation = useCreateJob();
   const updateMutation = useUpdateJob();
   const statusMutation = useUpdateJobStatus();
+  const { data: allUsers = [] } = useUsers();
+  // Foreman / responsable de chantier — admin/conducteur within the same company.
+  const responsableCandidates = useFilterByCompany(allUsers).filter(
+    u => u.role === 'admin' || u.role === 'conducteur',
+  );
 
   const { data: apiPurchases } = usePurchases();
   const jobPurchases = (apiPurchases ?? []).filter(p => p.jobId === selectedJob?.id);
@@ -155,9 +163,11 @@ export default function Jobs() {
     setFormQuoteId('');
     setFormHourlyRate('');
     setFormEstimatedHours('');
+    setFormResponsableId('');
+    setFormNotes('');
     setFormBaseline({
       title: '', address: '', startDate, endDate: '', quoteId: '',
-      hourlyRate: '', estimatedHours: '',
+      hourlyRate: '', estimatedHours: '', responsableId: '', notes: '',
     });
     setFormOpen(true);
   }
@@ -169,8 +179,10 @@ export default function Jobs() {
     const startDate = j.startDate ? j.startDate.slice(0, 10) : '';
     const endDate = j.endDate ? j.endDate.slice(0, 10) : '';
     const quoteId = j.quoteId ?? '';
-    const hourlyRate = jobMargin?.hourlyRate ? String(jobMargin.hourlyRate) : '';
-    const estimatedHours = jobMargin?.estimatedHours ? String(jobMargin.estimatedHours) : '';
+    const hourlyRate = j.hourlyRate != null ? String(j.hourlyRate) : (jobMargin?.hourlyRate ? String(jobMargin.hourlyRate) : '');
+    const estimatedHours = j.estimatedHours != null ? String(j.estimatedHours) : (jobMargin?.estimatedHours ? String(jobMargin.estimatedHours) : '');
+    const responsableId = j.responsableId ?? '';
+    const notes = j.notes ?? '';
     setFormTitle(title);
     setFormAddress(address);
     setFormStartDate(startDate);
@@ -178,7 +190,9 @@ export default function Jobs() {
     setFormQuoteId(quoteId);
     setFormHourlyRate(hourlyRate);
     setFormEstimatedHours(estimatedHours);
-    setFormBaseline({ title, address, startDate, endDate, quoteId, hourlyRate, estimatedHours });
+    setFormResponsableId(responsableId);
+    setFormNotes(notes);
+    setFormBaseline({ title, address, startDate, endDate, quoteId, hourlyRate, estimatedHours, responsableId, notes });
     setFormOpen(true);
   }
 
@@ -196,6 +210,8 @@ export default function Jobs() {
       quoteId: formQuoteId && formQuoteId !== '__none__' ? formQuoteId : undefined,
       hourlyRate: formHourlyRate ? parseFloat(formHourlyRate) : undefined,
       estimatedHours: formEstimatedHours ? parseFloat(formEstimatedHours) : undefined,
+      responsableId: formResponsableId && formResponsableId !== '__none__' ? formResponsableId : undefined,
+      notes: formNotes.trim() || undefined,
     };
 
     if (editingJob) {
@@ -384,7 +400,48 @@ export default function Jobs() {
                     <div><div className="text-xs text-muted-foreground uppercase">Fin</div><div className="font-medium">{selectedJob.endDate ? new Date(selectedJob.endDate).toLocaleDateString('fr-FR') : '–'}</div></div>
                     <div><div className="text-xs text-muted-foreground uppercase">Devis lié</div><div className="font-medium font-mono">{selectedJob.quoteId ? ((apiQuotes ?? []).find(q => q.id === selectedJob.quoteId)?.reference ?? selectedJob.quoteId) : '–'}</div></div>
                     <div><div className="text-xs text-muted-foreground uppercase">Entité</div><div className="font-medium">{selectedJob.company === 'ASP' ? 'ASP Signalisation' : 'JS Concept'}</div></div>
+                    <div><div className="text-xs text-muted-foreground uppercase">Responsable</div><div className="font-medium">{selectedJob.responsableName ?? '–'}</div></div>
+                    <div><div className="text-xs text-muted-foreground uppercase">Taux horaire</div><div className="font-medium">{selectedJob.hourlyRate != null ? `${selectedJob.hourlyRate} €/h` : '–'}</div></div>
                   </div>
+
+                  {/* Avancement vs estimation */}
+                  {(selectedJob.estimatedHours != null || jobMargin?.totalHours != null) && (
+                    <div className="border-t pt-4">
+                      <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Avancement vs estimation</h4>
+                      {(() => {
+                        const estimated = selectedJob.estimatedHours ?? jobMargin?.estimatedHours ?? null;
+                        const actual = jobMargin?.totalHours ?? 0;
+                        const ratio = estimated && estimated > 0 ? (actual / estimated) * 100 : null;
+                        const ratioColor = ratio == null ? 'text-muted-foreground' : ratio <= 90 ? 'text-success' : ratio <= 110 ? 'text-warning' : 'text-destructive';
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span>{actual}h réalisées / {estimated ?? '—'}h estimées</span>
+                              <span className={`font-bold ${ratioColor}`}>
+                                {ratio != null ? `${Math.round(ratio)}%` : '—'}
+                              </span>
+                            </div>
+                            {ratio != null && (
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${ratio <= 90 ? 'bg-success' : ratio <= 110 ? 'bg-warning' : 'bg-destructive'}`}
+                                  style={{ width: `${Math.min(ratio, 100)}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {selectedJob.notes && (
+                    <div className="border-t pt-4">
+                      <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Notes internes</h4>
+                      <p className="text-sm whitespace-pre-wrap">{selectedJob.notes}</p>
+                    </div>
+                  )}
+
                   <div className="border-t pt-4">
                     <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-3">Fil d'activité</h4>
                     <ActivityFeed activities={jobActivities} />
@@ -508,6 +565,33 @@ export default function Jobs() {
                 <Label htmlFor="j-hours">Heures estimées</Label>
                 <Input id="j-hours" type="number" step="0.5" min="0" value={formEstimatedHours} onChange={e => setFormEstimatedHours(e.target.value)} placeholder="0" />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="j-responsable">Responsable de chantier</Label>
+              <Select value={formResponsableId || '__none__'} onValueChange={(v) => setFormResponsableId(v === '__none__' ? '' : v)}>
+                <SelectTrigger id="j-responsable">
+                  <SelectValue placeholder="Sélectionner un responsable" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Non assigné</SelectItem>
+                  {responsableCandidates.map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="j-notes">Notes internes</Label>
+              <textarea
+                id="j-notes"
+                value={formNotes}
+                onChange={e => setFormNotes(e.target.value)}
+                rows={3}
+                className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring bg-background"
+                placeholder="Contraintes techniques, accès chantier, contacts…"
+              />
             </div>
 
             <div className="space-y-1.5">

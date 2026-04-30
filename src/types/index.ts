@@ -95,6 +95,11 @@ export interface Job {
   progress: number;
   assignedTo: string[];
   photoCount?: number;
+  hourlyRate?: number | null;
+  estimatedHours?: number | null;
+  responsableId?: string | null;
+  responsableName?: string | null;
+  notes?: string | null;
 }
 
 export interface Supplier {

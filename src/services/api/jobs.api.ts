@@ -17,6 +17,8 @@ export interface CreateJobPayload {
   clientId?: string;
   hourlyRate?: number;
   estimatedHours?: number;
+  responsableId?: string;
+  notes?: string;
 }
 
 export interface JobPhoto {
@@ -34,8 +36,6 @@ export interface UpdateJobPayload extends Partial<CreateJobPayload> {
   status?: Job['status'];
   progress?: number;
   assignedUserIds?: string[];
-  hourlyRate?: number;
-  estimatedHours?: number;
 }
 
 export const jobsApi = {

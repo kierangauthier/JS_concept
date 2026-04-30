@@ -15,6 +15,7 @@ import {
 } from '@/services/api/hooks';
 import { Button } from '@/components/ui/button';
 import { toISODateLocal } from '@/lib/format';
+import { getHolidayName } from '@/lib/holidays';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -419,11 +420,12 @@ function TeamPlanningView({
 
                     const cellKey = `${team.id}_${dateStr}`;
                     const isDropTarget = dragOverCell === cellKey && draggedSlotId !== null;
+                    const holidayName = getHolidayName(day);
 
                     return (
                       <div
                         key={di}
-                        className={`${di > 0 ? 'border-l' : ''} ${isToday(day) ? 'bg-primary/5' : ''} ${isDropTarget ? 'bg-primary/15 ring-2 ring-primary ring-inset' : ''}`}
+                        className={`${di > 0 ? 'border-l' : ''} ${isToday(day) ? 'bg-primary/5' : ''} ${holidayName ? 'bg-rose-50' : ''} ${isDropTarget ? 'bg-primary/15 ring-2 ring-primary ring-inset' : ''}`}
                         onDragOver={(e) => {
                           if (draggedSlotId && !isLocked) {
                             e.preventDefault();
@@ -448,11 +450,16 @@ function TeamPlanningView({
                           setDraggedSlotId(null);
                         }}
                       >
-                        <div className={`text-center px-2 py-1.5 border-b ${isToday(day) ? 'bg-primary/10' : 'bg-muted/30'}`}>
+                        <div className={`text-center px-2 py-1.5 border-b ${holidayName ? 'bg-rose-100' : isToday(day) ? 'bg-primary/10' : 'bg-muted/30'}`}>
                           <div className="text-[10px] font-medium text-muted-foreground uppercase">{DAY_LABELS[di]}</div>
                           <div className={`text-xs font-bold ${isToday(day) ? 'text-primary' : ''}`}>
                             {day.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                           </div>
+                          {holidayName && (
+                            <div className="mt-0.5 inline-block text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-rose-200 text-rose-900" title={holidayName}>
+                              Férié
+                            </div>
+                          )}
                           {totalHours > 0 && (
                             <div className={`text-[9px] mt-0.5 ${totalHours > 10 ? 'text-red-600 font-bold' : 'text-muted-foreground'}`}>
                               {totalHours}h
@@ -520,7 +527,7 @@ function TeamPlanningView({
                             );
                           })}
 
-                          {!isLocked && (
+                          {!isLocked && !holidayName && (
                             <div className="absolute bottom-0 left-0 right-0 p-1">
                               <HourlySlotPopover
                                 jobs={activeJobs}
@@ -529,6 +536,11 @@ function TeamPlanningView({
                                 onSelect={(sh, eh, jobId) => handleAssign(team.id, day, sh, eh, jobId)}
                                 disabled={createSlot.isPending}
                               />
+                            </div>
+                          )}
+                          {holidayName && (
+                            <div className="absolute inset-x-1 top-2 text-center text-[10px] text-rose-700/70 italic select-none pointer-events-none">
+                              {holidayName}
                             </div>
                           )}
                         </div>

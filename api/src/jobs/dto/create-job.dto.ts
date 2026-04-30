@@ -10,6 +10,8 @@ export class CreateJobDto {
   @IsOptional() @IsArray() @IsString({ each: true }) assignedUserIds?: string[];
   @IsOptional() @IsNumber() hourlyRate?: number;
   @IsOptional() @IsNumber() estimatedHours?: number;
+  @IsOptional() @IsString() responsableId?: string;
+  @IsOptional() @IsString() notes?: string;
 }
 
 export class UpdateJobDto {
@@ -22,4 +24,6 @@ export class UpdateJobDto {
   @IsOptional() @IsArray() @IsString({ each: true }) assignedUserIds?: string[];
   @IsOptional() @IsNumber() hourlyRate?: number;
   @IsOptional() @IsNumber() estimatedHours?: number;
+  @IsOptional() @IsString() responsableId?: string;
+  @IsOptional() @IsString() notes?: string;
 }
