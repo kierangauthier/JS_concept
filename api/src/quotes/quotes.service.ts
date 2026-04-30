@@ -617,8 +617,11 @@ export class QuotesService {
                 { text: 'Client', bold: true, margin: [0, 0, 0, 4] },
                 { text: quote.client?.name ?? 'N/A' },
                 { text: quote.client?.address ?? '' },
-                { text: quote.client?.city ?? '' },
-                { text: quote.client?.email ?? '', color: '#666666', margin: [0, 4, 0, 0] },
+                { text: [quote.client?.postalCode, quote.client?.city].filter(Boolean).join(' ') },
+                ...(quote.client?.siret
+                  ? [{ text: `SIRET ${quote.client.siret}`, color: '#666666', fontSize: 9 }]
+                  : []),
+                { text: quote.client?.email ?? '', color: '#666666', margin: [0, 4, 0, 0] as [number, number, number, number] },
               ],
             },
           ],

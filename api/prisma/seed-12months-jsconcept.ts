@@ -331,8 +331,8 @@ async function main() {
 
   // ─── 5. CATALOGUE ──────────────────────────────────────────────────────────
   const cat1 = await prisma.catalogCategory.create({ data: { id: createId(), name: 'Mobilier urbain',   sortOrder: 1, companyId: JS } });
-  const cat2 = await prisma.catalogCategory.create({ data: { id: createId(), name: 'Signalisation',     sortOrder: 2, companyId: JS } });
-  const cat3 = await prisma.catalogCategory.create({ data: { id: createId(), name: 'Marquage sol',      sortOrder: 3, companyId: JS } });
+  const cat2 = await prisma.catalogCategory.create({ data: { id: createId(), name: 'Signalisation verticale', sortOrder: 2, companyId: JS } });
+  const cat3 = await prisma.catalogCategory.create({ data: { id: createId(), name: 'Marquage au sol',         sortOrder: 3, companyId: JS } });
   const cat4 = await prisma.catalogCategory.create({ data: { id: createId(), name: 'Main d\'œuvre',     sortOrder: 4, companyId: JS } });
 
   await prisma.catalogProduct.createMany({

@@ -26,6 +26,20 @@ export const clientSchema = z.object({
     .default(""),
   address: z.string().trim().max(300, "Trop long").optional().default(""),
   city: z.string().trim().max(120, "Trop long").optional().default(""),
+  postalCode: z.string().trim().max(20, "Trop long").optional().default(""),
+  siren: z
+    .string()
+    .trim()
+    .regex(/^\d{9}$|^$/, "Le SIREN doit contenir 9 chiffres")
+    .optional()
+    .default(""),
+  siret: z
+    .string()
+    .trim()
+    .regex(/^\d{14}$|^$/, "Le SIRET doit contenir 14 chiffres")
+    .optional()
+    .default(""),
+  apeCode: z.string().trim().max(10, "Trop long").optional().default(""),
   type: z.enum(["public", "private"], {
     required_error: "Sélectionnez un type",
   }),

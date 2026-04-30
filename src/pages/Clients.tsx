@@ -49,7 +49,8 @@ export default function Clients() {
   const [formBaseline, setFormBaseline] = useState<ClientFormValues | null>(null);
 
   const EMPTY_VALUES: ClientFormValues = {
-    name: '', contact: '', email: '', phone: '', address: '', city: '', type: 'private',
+    name: '', contact: '', email: '', phone: '', address: '', city: '',
+    postalCode: '', siren: '', siret: '', apeCode: '', type: 'private',
   };
 
   const form = useForm<ClientFormValues>({
@@ -88,6 +89,10 @@ export default function Clients() {
       phone: c.phone ?? '',
       address: c.address ?? '',
       city: c.city ?? '',
+      postalCode: c.postalCode ?? '',
+      siren: c.siren ?? '',
+      siret: c.siret ?? '',
+      apeCode: c.apeCode ?? '',
       type: (c.type as 'public' | 'private') ?? 'private',
     };
     form.reset(values);
@@ -104,6 +109,10 @@ export default function Clients() {
       address: values.address ?? '',
       city: values.city ?? '',
       type: values.type,
+      ...(values.postalCode ? { postalCode: values.postalCode } : {}),
+      ...(values.siren ? { siren: values.siren } : {}),
+      ...(values.siret ? { siret: values.siret } : {}),
+      ...(values.apeCode ? { apeCode: values.apeCode } : {}),
     };
 
     if (editingClient) {
@@ -287,6 +296,62 @@ export default function Clients() {
                     <FormLabel>Ville</FormLabel>
                     <FormControl>
                       <Input placeholder="Ville" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="postalCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Code postal</FormLabel>
+                    <FormControl>
+                      <Input placeholder="69200" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="siren"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SIREN</FormLabel>
+                    <FormControl>
+                      <Input placeholder="9 chiffres (optionnel)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="siret"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SIRET</FormLabel>
+                    <FormControl>
+                      <Input placeholder="14 chiffres (optionnel)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="apeCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Code APE / NAF</FormLabel>
+                    <FormControl>
+                      <Input placeholder="ex: 4399C (optionnel)" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
