@@ -33,6 +33,19 @@ export class AntivirusService implements OnModuleInit {
     ) === 'true';
 
   async onModuleInit() {
+    // Loud tripwire: warn at boot if the explicit FAIL_CLOSED=false bypass is
+    // active in a production-built image. Operators MUST see this if they
+    // accidentally inherit the dev compose value into a real prod deploy.
+    if (
+      process.env.ANTIVIRUS_FAIL_CLOSED === 'false' &&
+      process.env.NODE_ENV === 'production'
+    ) {
+      this.logger.warn(
+        '⚠️  [Antivirus] ANTIVIRUS_FAIL_CLOSED=false in NODE_ENV=production — uploads pass through UNSCANNED. ' +
+        'Acceptable in dev/demo environments only. Unset this variable for real production.',
+      );
+    }
+
     const host = process.env.CLAMAV_HOST?.trim();
     if (!host) {
       const msg = '[Antivirus] CLAMAV_HOST not set';

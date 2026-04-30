@@ -367,13 +367,13 @@ export default function Jobs() {
 
               <Tabs defaultValue="info" className="w-full">
                 <TabsList className="w-full grid grid-cols-7 h-9">
-                  <TabsTrigger value="info" className="text-[10px] px-1"><Info className="h-3 w-3" /></TabsTrigger>
-                  <TabsTrigger value="planning" className="text-[10px] px-1"><CalendarDays className="h-3 w-3" /></TabsTrigger>
-                  <TabsTrigger value="team" className="text-[10px] px-1"><Users className="h-3 w-3" /></TabsTrigger>
-                  <TabsTrigger value="photos" className="text-[10px] px-1"><Camera className="h-3 w-3" /></TabsTrigger>
-                  <TabsTrigger value="hours" className="text-[10px] px-1"><Clock className="h-3 w-3" /></TabsTrigger>
-                  <TabsTrigger value="purchases" className="text-[10px] px-1"><ShoppingCart className="h-3 w-3" /></TabsTrigger>
-                  <TabsTrigger value="docs" className="text-[10px] px-1"><FileText className="h-3 w-3" /></TabsTrigger>
+                  <TabsTrigger value="info" className="text-[10px] px-1" aria-label="Informations" title="Informations"><Info className="h-3 w-3" /></TabsTrigger>
+                  <TabsTrigger value="planning" className="text-[10px] px-1" aria-label="Planning" title="Planning"><CalendarDays className="h-3 w-3" /></TabsTrigger>
+                  <TabsTrigger value="team" className="text-[10px] px-1" aria-label="Équipe" title="Équipe"><Users className="h-3 w-3" /></TabsTrigger>
+                  <TabsTrigger value="photos" className="text-[10px] px-1" aria-label="Photos" title="Photos"><Camera className="h-3 w-3" /></TabsTrigger>
+                  <TabsTrigger value="hours" className="text-[10px] px-1" aria-label="Heures" title="Heures"><Clock className="h-3 w-3" /></TabsTrigger>
+                  <TabsTrigger value="purchases" className="text-[10px] px-1" aria-label="Achats" title="Achats"><ShoppingCart className="h-3 w-3" /></TabsTrigger>
+                  <TabsTrigger value="docs" className="text-[10px] px-1" aria-label="Documents" title="Documents"><FileText className="h-3 w-3" /></TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="info" className="mt-3 space-y-4">
