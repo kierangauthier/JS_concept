@@ -19,7 +19,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CompanySelect } from '@/components/shared/CompanySelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { usePurchases, usePurchaseDetail, useCreatePurchase, useMarkOrdered, useMarkReceived, useClients, useJobs, useActivityLogs, useAttachments } from '@/services/api/hooks';
+import { usePurchases, usePurchaseDetail, useCreatePurchase, useMarkOrdered, useMarkReceived, useSuppliers, useJobs, useActivityLogs, useAttachments } from '@/services/api/hooks';
 
 const workflowSteps: { status: PurchaseStatus; label: string; icon: React.ElementType }[] = [
   { status: 'draft', label: 'Demande', icon: Package },
@@ -45,9 +45,9 @@ export default function Purchases() {
   const markReceivedMutation = useMarkReceived();
 
   // Data for form selects
-  const { data: apiClients } = useClients();
+  const { data: apiSuppliers } = useSuppliers();
   const { data: apiJobs } = useJobs();
-  const suppliers = useFilterByCompany(apiClients ?? []);
+  const suppliers = useFilterByCompany(apiSuppliers ?? []);
   const jobsList = useFilterByCompany(apiJobs ?? []);
 
   // Form state

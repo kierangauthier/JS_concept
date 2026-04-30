@@ -8,7 +8,10 @@ import { InvoiceIntegrityService } from './invoice-integrity.service';
 import { generateFacturXXml, pickBestProfile, FacturXInvoice, FacturXProfile, FacturXLine } from './facturx.generator';
 import { FacturXPdfService } from './facturx-pdf.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const PdfPrinter = require('pdfmake');
+// pdfmake's main entry (`require('pdfmake')`) only exports `{virtualfs, urlResolver, fonts}`
+// for browser contexts — not a constructor. The actual PdfPrinter class lives at
+// `pdfmake/js/Printer` and is wrapped as an ES module, so we pick its default export.
+const PdfPrinter = require('pdfmake/js/Printer').default;
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
 
 /**
@@ -426,7 +429,8 @@ export class InvoicesService {
       },
     };
 
-    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    // pdfmake 0.3.x returns a Promise that resolves to the PDFKit document.
+    const pdfDoc: any = await printer.createPdfKitDocument(docDefinition);
     const chunks: Buffer[] = [];
 
     return new Promise((resolve, reject) => {

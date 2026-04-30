@@ -1,12 +1,28 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Company, User, UserRole } from '@/types';
 import { authApi } from '@/services/api/auth.api';
-import { authStore } from '@/services/api/http';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { authStore, ApiError } from '@/services/api/http';
+import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // ─── QueryClient singleton ────────────────────────────────────────────────────
 
+// Global handler for query failures so users always see a red toast when a list
+// endpoint dies. Mutations still rely on per-hook onError, which already
+// surfaces a contextual message. 401 is silenced (http.ts handles the
+// session-expired toast itself) and so is the AI consent 403.
+const queryCache = new QueryCache({
+  onError: (error) => {
+    const apiError = error as ApiError;
+    if (apiError?.status === 401) return;
+    if (apiError?.status === 403 && apiError?.code === 'AI_CONSENT_REQUIRED') return;
+    const message = apiError?.message || 'Erreur lors du chargement des données';
+    toast.error(message, { duration: 5000 });
+  },
+});
+
 const queryClient = new QueryClient({
+  queryCache,
   defaultOptions: {
     queries: {
       retry: 1,
@@ -203,6 +219,7 @@ export const navItems: NavItem[] = [
   { title: 'Équipes',            path: '/hr',             icon: 'UserCog',         roles: ['admin', 'conducteur'] },
   { title: 'Atelier',            path: '/workshop',       icon: 'Wrench',          roles: ['admin', 'conducteur'] },
   { title: 'Achats',             path: '/purchases',      icon: 'ShoppingCart',    roles: ['admin', 'conducteur', 'comptable'] },
+  { title: 'Fournisseurs',       path: '/suppliers',      icon: 'Truck',           roles: ['admin', 'conducteur'] },
 
   // ─── Temps & RH ──────────────────────────────────────────────────────────
   { title: 'Saisie heures',      path: '/time-entries',   icon: 'Clock',           roles: ['admin', 'conducteur', 'collaborateur'],              group: 'Temps & RH' },

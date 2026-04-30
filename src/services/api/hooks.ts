@@ -5,6 +5,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientsApi, CreateClientPayload, UpdateClientPayload } from './clients.api';
+import { suppliersApi, CreateSupplierPayload, UpdateSupplierPayload } from './suppliers.api';
 import { quotesApi, CreateQuotePayload, UpdateQuotePayload } from './quotes.api';
 import { jobsApi, CreateJobPayload, UpdateJobPayload, JobPhoto } from './jobs.api';
 import { searchApi, SearchResults } from './search.api';
@@ -89,6 +90,45 @@ export function useArchiveClient() {
       toast.success('Client archivé');
     },
     onError: (err: any) => toast.error(err.message ?? 'Impossible d\u2019archiver le client'),
+  });
+}
+
+// ─── Suppliers ──────────────────────────────────────────────────────────────
+
+export function useSuppliers() {
+  const { isAuthenticated, selectedCompany } = useApp();
+  return useQuery({
+    queryKey: ['suppliers', selectedCompany],
+    queryFn: () => suppliersApi.list({ limit: 100 }).then((r) => r.data),
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateSupplier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ data, companyScope }: { data: CreateSupplierPayload; companyScope?: string }) =>
+      withScope(companyScope, () => suppliersApi.create(data)),
+    onSuccess: (s) => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      toast.success(`Fournisseur ${s.name} créé`);
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Erreur création fournisseur'),
+  });
+}
+
+export function useUpdateSupplier() {
+  const queryClient = useQueryClient();
+  const { selectedCompany } = useApp();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateSupplierPayload }) =>
+      suppliersApi.update(id, data),
+    onSuccess: (s) => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers', selectedCompany] });
+      toast.success(`Fournisseur ${s.name} mis à jour`);
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Erreur mise à jour fournisseur'),
   });
 }
 
@@ -1154,7 +1194,7 @@ export function useSendEmail() {
       queryClient.invalidateQueries({ queryKey: ['activity-logs', variables.entityType, variables.entityId] });
       toast.success('Email envoyé avec succès');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur envoi email'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur envoi email'),
   });
 }
 
@@ -1178,7 +1218,7 @@ export function useCreateAmendment() {
       queryClient.invalidateQueries({ queryKey: ['activity-logs', 'quote', variables.quoteId] });
       toast.success('Avenant créé');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur création avenant'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur création avenant'),
   });
 }
 
@@ -1191,7 +1231,7 @@ export function useUpdateAmendment() {
       queryClient.invalidateQueries({ queryKey: ['amendments', result.quoteId] });
       toast.success('Avenant mis à jour');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur mise à jour'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur mise à jour'),
   });
 }
 
@@ -1205,7 +1245,7 @@ export function useUpdateAmendmentStatus() {
       queryClient.invalidateQueries({ queryKey: ['activity-logs', 'quote', result.quoteId] });
       toast.success('Statut avenant mis à jour');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur statut'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur statut'),
   });
 }
 
@@ -1217,7 +1257,7 @@ export function useDeleteAmendment() {
       queryClient.invalidateQueries({ queryKey: ['amendments'] });
       toast.success('Avenant supprimé');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur suppression'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur suppression'),
   });
 }
 
@@ -1250,7 +1290,7 @@ export function useCreateAbsence() {
       queryClient.invalidateQueries({ queryKey: ['absences'] });
       toast.success('Demande d\'absence créée');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur création absence'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur création absence'),
   });
 }
 
@@ -1262,7 +1302,7 @@ export function useApproveAbsence() {
       queryClient.invalidateQueries({ queryKey: ['absences'] });
       toast.success('Absence approuvée');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur approbation'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur approbation'),
   });
 }
 
@@ -1274,7 +1314,7 @@ export function useRejectAbsence() {
       queryClient.invalidateQueries({ queryKey: ['absences'] });
       toast.success('Absence refusée');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur refus'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur refus'),
   });
 }
 
@@ -1286,7 +1326,7 @@ export function useDeleteAbsence() {
       queryClient.invalidateQueries({ queryKey: ['absences'] });
       toast.success('Absence supprimée');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur suppression'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur suppression'),
   });
 }
 
@@ -1298,7 +1338,7 @@ export function useCreateAbsenceType() {
       queryClient.invalidateQueries({ queryKey: ['absence-types'] });
       toast.success('Type d\'absence créé');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur création type'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur création type'),
   });
 }
 
@@ -1331,7 +1371,7 @@ export function useCreateReminderRule() {
       queryClient.invalidateQueries({ queryKey: ['reminder-rules'] });
       toast.success('Règle de relance créée');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur création règle'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur création règle'),
   });
 }
 
@@ -1344,7 +1384,7 @@ export function useUpdateReminderRule() {
       queryClient.invalidateQueries({ queryKey: ['reminder-rules'] });
       toast.success('Règle mise à jour');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur mise à jour règle'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur mise à jour règle'),
   });
 }
 
@@ -1356,7 +1396,7 @@ export function useDeleteReminderRule() {
       queryClient.invalidateQueries({ queryKey: ['reminder-rules'] });
       toast.success('Règle supprimée');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur suppression règle'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur suppression règle'),
   });
 }
 
@@ -1369,7 +1409,7 @@ export function useRunReminders() {
       const totalSent = data.results.reduce((s, r) => s + r.sent, 0);
       toast.success(`Relances traitées : ${totalSent} envoyée(s)`);
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur traitement relances'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur traitement relances'),
   });
 }
 
@@ -1392,7 +1432,7 @@ export function useCreateQuoteTemplate() {
       queryClient.invalidateQueries({ queryKey: ['quote-templates'] });
       toast.success('Modèle créé');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur création modèle'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur création modèle'),
   });
 }
 
@@ -1406,7 +1446,7 @@ export function useCreateQuoteFromTemplate() {
       queryClient.invalidateQueries({ queryKey: ['quote-templates'] });
       toast.success('Devis créé depuis le modèle');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur création devis'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur création devis'),
   });
 }
 
@@ -1418,7 +1458,7 @@ export function useDeleteQuoteTemplate() {
       queryClient.invalidateQueries({ queryKey: ['quote-templates'] });
       toast.success('Modèle supprimé');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Erreur suppression modèle'),
+    onError: (err: any) => toast.error(err.message ?? 'Erreur suppression modèle'),
   });
 }
 

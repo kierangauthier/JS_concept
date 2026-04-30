@@ -10,7 +10,9 @@ import { CreateQuoteDto, UpdateQuoteDto } from './dto/create-quote.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { AuditService } from '../audit/audit.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const PdfPrinter = require('pdfmake');
+// See invoices.service.ts for why we go through pdfmake/js/Printer .default —
+// the package's main entry isn't the printer constructor.
+const PdfPrinter = require('pdfmake/js/Printer').default;
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -618,7 +620,8 @@ export class QuotesService {
       },
     };
 
-    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    // pdfmake 0.3.x returns a Promise that resolves to the PDFKit document.
+    const pdfDoc: any = await printer.createPdfKitDocument(docDefinition);
     const chunks: Buffer[] = [];
 
     return new Promise((resolve, reject) => {
