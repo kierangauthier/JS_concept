@@ -29,10 +29,14 @@ async function bootstrap() {
           // Swagger UI (dev only) inlines a bit of CSS/JS. If you keep Swagger
           // out of production, this is only relevant there.
           'script-src': ["'self'", "'unsafe-inline'"],
-          'style-src': ["'self'", "'unsafe-inline'"],
-          'img-src': ["'self'", 'data:'],
+          'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+          'img-src': ["'self'", 'data:', 'blob:'],
+          'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
           'connect-src': ["'self'"],
-          'object-src': ["'none'"],
+          // Allow blob: in frame-src/object-src so the SPA can render PDF
+          // previews via <iframe src="blob:..."> on the same origin.
+          'frame-src': ["'self'", 'blob:'],
+          'object-src': ["'self'", 'blob:'],
           'frame-ancestors': ["'none'"],
           'base-uri': ["'self'"],
           'form-action': ["'self'"],
