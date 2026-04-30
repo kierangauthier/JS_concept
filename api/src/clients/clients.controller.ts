@@ -16,7 +16,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('api/clients')
-@Roles('admin', 'conducteur')
+@Roles('admin')
 export class ClientsController {
   constructor(private clientsService: ClientsService) {}
 

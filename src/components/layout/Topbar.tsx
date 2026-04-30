@@ -33,7 +33,11 @@ export function Topbar() {
         </div>
       </div>
 
-      <GlobalSearch />
+      {/* Global search hits /api/search which scopes by company on every
+          searchable entity (clients, quotes, jobs, invoices). Technicians
+          have no access to those, so the search bar would either return
+          empty or 403 every keystroke — better to hide it entirely. */}
+      {currentUser?.role !== 'technicien' && <GlobalSearch />}
 
       <div className="flex items-center gap-2">
         {/* Company Switcher — hidden when the user only has one allowed scope. */}

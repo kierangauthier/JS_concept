@@ -9,7 +9,7 @@ import { assertMime } from '../common/security/file-type';
 const MAX_CATALOG_BYTES = 5 * 1024 * 1024; // 5 MB
 
 @Controller('api/catalog')
-@Roles('admin', 'conducteur')
+@Roles('admin')
 export class CatalogController {
   constructor(
     private catalogService: CatalogService,

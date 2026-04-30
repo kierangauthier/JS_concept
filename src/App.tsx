@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppProvider, useApp } from "@/contexts/AppContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { RoleGuard } from "@/components/shared/RoleGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { TerrainLayout } from "@/components/layout/TerrainLayout";
 import Dashboard from "./pages/Dashboard";
@@ -63,10 +64,12 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Redirects authenticated users away from /login.
+ * Redirects authenticated users away from /login. Technicians land on
+ * /terrain (their dedicated mobile space); everyone else on the desktop
+ * Dashboard at /.
  */
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useApp();
+  const { isAuthenticated, isLoading, currentUser } = useApp();
 
   if (isLoading) {
     return (
@@ -77,7 +80,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    const home = currentUser?.role === 'technicien' ? '/terrain' : '/';
+    return <Navigate to={home} replace />;
   }
 
   return <>{children}</>;
@@ -102,27 +106,30 @@ const App = () => (
             <Route path="/confidentialite" element={<Confidentialite />} />
           </Route>
 
-          {/* Protected desktop layout */}
+          {/* Protected desktop layout — role gates mirror the @Roles() on the
+              corresponding controllers. The backend remains the source of truth;
+              RoleGuard just closes the visual leak (showing a forbidden page
+              shape would silently 403 every fetch and confuse the user). */}
           <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/suppliers" element={<Suppliers />} />
-            <Route path="/quotes" element={<Quotes />} />
-            <Route path="/jobs" element={<Jobs />} />
-            <Route path="/jobs/:id" element={<Jobs />} />
-            <Route path="/planning" element={<Planning />} />
-            <Route path="/hr" element={<HR />} />
-            <Route path="/purchases" element={<Purchases />} />
-            <Route path="/workshop" element={<Workshop />} />
-            <Route path="/invoicing" element={<Invoicing />} />
-            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/" element={<RoleGuard roles={['admin', 'conducteur', 'comptable']}><Dashboard /></RoleGuard>} />
+            <Route path="/clients" element={<RoleGuard roles={['admin']}><Clients /></RoleGuard>} />
+            <Route path="/suppliers" element={<RoleGuard roles={['admin']}><Suppliers /></RoleGuard>} />
+            <Route path="/quotes" element={<RoleGuard roles={['admin']}><Quotes /></RoleGuard>} />
+            <Route path="/jobs" element={<RoleGuard roles={['admin', 'conducteur']}><Jobs /></RoleGuard>} />
+            <Route path="/jobs/:id" element={<RoleGuard roles={['admin', 'conducteur']}><Jobs /></RoleGuard>} />
+            <Route path="/planning" element={<RoleGuard roles={['admin', 'conducteur']}><Planning /></RoleGuard>} />
+            <Route path="/hr" element={<RoleGuard roles={['admin', 'conducteur']}><HR /></RoleGuard>} />
+            <Route path="/purchases" element={<RoleGuard roles={['admin', 'comptable']}><Purchases /></RoleGuard>} />
+            <Route path="/workshop" element={<RoleGuard roles={['admin', 'conducteur']}><Workshop /></RoleGuard>} />
+            <Route path="/invoicing" element={<RoleGuard roles={['admin', 'comptable']}><Invoicing /></RoleGuard>} />
+            <Route path="/catalog" element={<RoleGuard roles={['admin']}><Catalog /></RoleGuard>} />
             <Route path="/time-entries" element={<TimeEntries />} />
-            <Route path="/time-validation" element={<TimeValidation />} />
+            <Route path="/time-validation" element={<RoleGuard roles={['admin', 'conducteur']}><TimeValidation /></RoleGuard>} />
             <Route path="/absences" element={<Absences />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/admin/legal" element={<AdminLegal />} />
-            <Route path="/admin/import" element={<ImportData />} />
+            <Route path="/reports" element={<RoleGuard roles={['admin']}><Reports /></RoleGuard>} />
+            <Route path="/admin" element={<RoleGuard roles={['admin']}><AdminPage /></RoleGuard>} />
+            <Route path="/admin/legal" element={<RoleGuard roles={['admin']}><AdminLegal /></RoleGuard>} />
+            <Route path="/admin/import" element={<RoleGuard roles={['admin']}><ImportData /></RoleGuard>} />
             <Route path="/account" element={<Account />} />
           </Route>
 

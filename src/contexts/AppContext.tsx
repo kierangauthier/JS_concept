@@ -234,33 +234,37 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   // ─── Pilotage ─────────────────────────────────────────────────────────────
   { title: 'Dashboard',          path: '/',               icon: 'LayoutDashboard', roles: ['admin', 'conducteur', 'comptable'],                  group: 'Pilotage' },
-  { title: 'Rapports',           path: '/reports',        icon: 'BarChart3',       roles: ['admin', 'conducteur'] },
+  { title: 'Rapports',           path: '/reports',        icon: 'BarChart3',       roles: ['admin'] },
 
-  // ─── Commercial ──────────────────────────────────────────────────────────
-  { title: 'Clients',            path: '/clients',        icon: 'Users',           roles: ['admin', 'conducteur'],                               group: 'Commercial' },
-  { title: 'Devis',              path: '/quotes',         icon: 'FileText',        roles: ['admin', 'conducteur'] },
-  { title: 'Catalogue',          path: '/catalog',        icon: 'Package',         roles: ['admin', 'conducteur'] },
+  // ─── Commercial (admin + comptable) ──────────────────────────────────────
+  // Conducteurs n'ont pas accès au commercial : ils pilotent l'opérationnel,
+  // pas la relation client ni les devis.
+  { title: 'Clients',            path: '/clients',        icon: 'Users',           roles: ['admin'],                                             group: 'Commercial' },
+  { title: 'Devis',              path: '/quotes',         icon: 'FileText',        roles: ['admin'] },
+  { title: 'Catalogue',          path: '/catalog',        icon: 'Package',         roles: ['admin'] },
 
-  // ─── Production ──────────────────────────────────────────────────────────
-  { title: 'Chantiers',          path: '/jobs',           icon: 'HardHat',         roles: ['admin', 'conducteur', 'technicien', 'collaborateur'], group: 'Production' },
+  // ─── Production (admin + conducteur) ─────────────────────────────────────
+  // Le technicien ne consulte pas la liste agrégée des chantiers ; il voit
+  // ses interventions via /terrain.
+  { title: 'Chantiers',          path: '/jobs',           icon: 'HardHat',         roles: ['admin', 'conducteur'],                               group: 'Production' },
   { title: 'Planning',           path: '/planning',       icon: 'CalendarDays',    roles: ['admin', 'conducteur'] },
   { title: 'Équipes',            path: '/hr',             icon: 'UserCog',         roles: ['admin', 'conducteur'] },
   { title: 'Atelier',            path: '/workshop',       icon: 'Wrench',          roles: ['admin', 'conducteur'] },
-  { title: 'Achats',             path: '/purchases',      icon: 'ShoppingCart',    roles: ['admin', 'conducteur', 'comptable'] },
-  { title: 'Fournisseurs',       path: '/suppliers',      icon: 'Truck',           roles: ['admin', 'conducteur'] },
+  { title: 'Achats',             path: '/purchases',      icon: 'ShoppingCart',    roles: ['admin', 'comptable'] },
+  { title: 'Fournisseurs',       path: '/suppliers',      icon: 'Truck',           roles: ['admin'] },
 
   // ─── Temps & RH ──────────────────────────────────────────────────────────
-  { title: 'Saisie heures',      path: '/time-entries',   icon: 'Clock',           roles: ['admin', 'conducteur', 'collaborateur'],              group: 'Temps & RH' },
+  { title: 'Saisie heures',      path: '/time-entries',   icon: 'Clock',           roles: ['admin', 'conducteur', 'technicien', 'collaborateur'], group: 'Temps & RH' },
   { title: 'Validation',         path: '/time-validation',icon: 'ClipboardCheck',  roles: ['admin', 'conducteur'] },
   { title: 'Absences',           path: '/absences',       icon: 'CalendarOff',     roles: ['admin', 'conducteur', 'technicien', 'collaborateur'] },
 
-  // ─── Facturation ─────────────────────────────────────────────────────────
+  // ─── Facturation (admin + comptable) ─────────────────────────────────────
   { title: 'Factures',           path: '/invoicing',      icon: 'Receipt',         roles: ['admin', 'comptable'],                                group: 'Facturation' },
 
   // ─── Terrain (technicien uniquement) ─────────────────────────────────────
   { title: 'Terrain',            path: '/terrain',        icon: 'MapPin',          roles: ['technicien'],                                        group: 'Mon espace' },
 
-  // ─── Administration ──────────────────────────────────────────────────────
+  // ─── Administration (admin only) ─────────────────────────────────────────
   { title: 'Import',             path: '/admin/import',   icon: 'Upload',          roles: ['admin'],                                             group: 'Administration' },
   { title: 'Infos légales',      path: '/admin/legal',    icon: 'ScrollText',      roles: ['admin'] },
   { title: 'Paramètres',         path: '/admin',          icon: 'Settings',        roles: ['admin'] },

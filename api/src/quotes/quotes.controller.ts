@@ -18,7 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('api/quotes')
-@Roles('admin', 'conducteur')
+@Roles('admin')
 export class QuotesController {
   constructor(private quotesService: QuotesService) {}
 

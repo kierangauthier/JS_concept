@@ -6,7 +6,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('api/purchase-orders')
-@Roles('admin', 'conducteur')
+@Roles('admin', 'comptable')
 export class PurchasesController {
   constructor(private purchasesService: PurchasesService) {}
 
