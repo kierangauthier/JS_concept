@@ -73,4 +73,7 @@ export const teamPlanningApi = {
 
   getMyPlanning: (weekStart: string): Promise<MyPlanningData> =>
     http.get<MyPlanningData>(`/team-planning/my?weekStart=${weekStart}`),
+
+  copyWeek: (sourceWeekStart: string, targetWeekStart: string): Promise<{ copied: number; skipped: number; message?: string }> =>
+    http.post('/team-planning/copy-week', { sourceWeekStart, targetWeekStart }),
 };

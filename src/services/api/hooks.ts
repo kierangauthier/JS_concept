@@ -1015,6 +1015,26 @@ export function useSendPlanning() {
   });
 }
 
+export function useCopyWeek() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sourceWeekStart, targetWeekStart }: { sourceWeekStart: string; targetWeekStart: string }) =>
+      teamPlanningApi.copyWeek(sourceWeekStart, targetWeekStart),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['team-planning'] });
+      if (result.message) {
+        toast.info(result.message);
+      } else if (result.copied === 0) {
+        toast.info('Aucun créneau copié');
+      } else {
+        const skip = result.skipped > 0 ? ` — ${result.skipped} ignoré(s) (conflit)` : '';
+        toast.success(`${result.copied} créneau(x) copié(s)${skip}`);
+      }
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Erreur copie semaine'),
+  });
+}
+
 export function useMyPlanning(weekStart: string) {
   const { isAuthenticated } = useApp();
   return useQuery({
