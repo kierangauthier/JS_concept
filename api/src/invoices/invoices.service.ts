@@ -270,14 +270,16 @@ export class InvoicesService {
 
     const c = invoice.company as any;
     const companyName = c.legalName ?? c.name;
+    const companyTagline = c.tagline ?? '';
     const addrLines = [c.addressLine1, c.addressLine2, [c.postalCode, c.city].filter(Boolean).join(' ')]
       .filter((l) => l && String(l).trim().length > 0);
-    const companyAddress = addrLines.length > 0 ? addrLines.join('\n') : c.name;
+    const contactBits = [c.phone, c.email, c.website].filter((s) => s && String(s).trim().length > 0);
 
     const lateRate = c.latePaymentRate ?? '3 × taux d\'intérêt légal';
     const lateFee = c.lateFeeFlat != null ? Number(c.lateFeeFlat) : 40;
     const paymentTermsText =
       c.paymentTerms ?? 'Paiement à 30 jours fin de mois';
+    const facturxProfile = c.facturxProfile ?? 'BASIC';
 
     const formatDate = (d: Date) => d.toLocaleDateString('fr-FR');
     // Manual fr-FR formatter: toLocaleString emits a thin non-breaking space
@@ -290,15 +292,24 @@ export class InvoicesService {
       return `${withSpaces},${decPart}`;
     };
 
-    const legalMentions: string[] = [];
-    if (c.legalForm && c.shareCapital != null)
-      legalMentions.push(`${c.legalForm} au capital de ${fmtPrice(Number(c.shareCapital))} €`);
-    else if (c.legalForm) legalMentions.push(String(c.legalForm));
-    if (c.siret) legalMentions.push(`SIRET ${c.siret}`);
-    else if (c.siren) legalMentions.push(`SIREN ${c.siren}`);
-    if (c.rcsCity) legalMentions.push(`RCS ${c.rcsCity}`);
-    if (c.vatNumber) legalMentions.push(`TVA ${c.vatNumber}`);
-    const legalFooter = legalMentions.join(' — ');
+    // Per-page legal footer — required for French invoicing compliance.
+    const buildLegalFooter = (): string => {
+      const parts: string[] = [];
+      const head: string[] = [companyName];
+      if (c.legalForm) head.push(c.legalForm);
+      if (c.shareCapital != null) head.push(`au capital de ${fmtPrice(Number(c.shareCapital))} €`);
+      parts.push(head.join(' '));
+      if (addrLines.length) parts.push(`Siège : ${addrLines.join(', ')}`);
+      const ids: string[] = [];
+      if (c.siret) ids.push(`SIRET ${c.siret}`);
+      else if (c.siren) ids.push(`SIREN ${c.siren}`);
+      if (c.rcsCity) ids.push(`RCS ${c.rcsCity}${c.siren ? ' B ' + c.siren : ''}`);
+      if (c.apeCode) ids.push(`APE ${c.apeCode}`);
+      if (c.vatNumber) ids.push(`TVA ${c.vatNumber}`);
+      if (ids.length) parts.push(ids.join(' · '));
+      return parts.join('\n');
+    };
+    const legalFooter = buildLegalFooter();
 
     const fonts = {
       Roboto: {
@@ -321,11 +332,28 @@ export class InvoicesService {
 
     const docDefinition: TDocumentDefinitions = {
       defaultStyle: { font: 'Helvetica', fontSize: 10 },
-      pageMargins: [40, 60, 40, 60],
+      // Bottom margin extended to leave room for the legal footer.
+      pageMargins: [40, 60, 40, 90],
+      footer: (currentPage: number, pageCount: number) => ({
+        margin: [40, 0, 40, 20],
+        columns: [
+          { text: legalFooter, style: 'footerLegal', width: '*' },
+          { text: `Page ${currentPage} / ${pageCount}`, style: 'footerPage', alignment: 'right', width: 70 },
+        ],
+      }),
       content: [
         // Company header
-        { text: companyName, style: 'companyName' },
-        { text: companyAddress, style: 'companyAddress', margin: [0, 0, 0, 20] },
+        {
+          stack: [
+            { text: companyName, style: 'companyName' },
+            ...(companyTagline ? [{ text: companyTagline, style: 'companyAddress' }] : []),
+            ...addrLines.map((l) => ({ text: l, style: 'companyAddress' })),
+            ...(contactBits.length
+              ? [{ text: contactBits.join(' · '), style: 'companyAddress', margin: [0, 4, 0, 0] as [number, number, number, number] }]
+              : []),
+          ],
+          margin: [0, 0, 0, 20] as [number, number, number, number],
+        },
 
         // Invoice title + reference
         {
@@ -399,29 +427,39 @@ export class InvoicesService {
           margin: [0, 0, 0, 30] as [number, number, number, number],
         },
 
+        // Bank details (visible block before legal terms)
+        ...(c.iban || c.bic || c.bankName
+          ? [
+              { text: 'Coordonnées bancaires', bold: true, margin: [0, 0, 0, 5] as [number, number, number, number] },
+              {
+                columns: [
+                  { text: `Banque : ${c.bankName ?? '—'}`, width: '*' },
+                  { text: `IBAN : ${c.iban ?? '—'}`, width: 'auto' },
+                  { text: `BIC : ${c.bic ?? '—'}`, width: 'auto' },
+                ],
+                fontSize: 9, color: '#444444',
+                margin: [0, 0, 0, 15] as [number, number, number, number],
+              },
+            ]
+          : []),
+
         // Payment terms
         { text: 'Conditions de paiement', bold: true, margin: [0, 0, 0, 5] as [number, number, number, number] },
         { text: `${paymentTermsText}. Date d'échéance : ${formatDate(invoice.dueDate)}.`, color: '#444444' },
-        ...(c.iban
-          ? [{
-              text: `IBAN : ${c.iban}${c.bic ? `  —  BIC : ${c.bic}` : ''}`,
-              color: '#444444',
-              margin: [0, 4, 0, 0] as [number, number, number, number],
-            }]
-          : []),
         {
           text:
             `En cas de retard de paiement, des pénalités de retard au taux de ${lateRate} seront exigibles, ` +
             `ainsi qu'une indemnité forfaitaire pour frais de recouvrement de ${lateFee}€ (art. D.441-5 Code de commerce).`,
           color: '#666666', fontSize: 8, margin: [0, 5, 0, 0] as [number, number, number, number],
         },
-        ...(legalFooter
-          ? [{
-              text: legalFooter,
-              color: '#888888', fontSize: 7, alignment: 'center' as const,
-              margin: [0, 20, 0, 0] as [number, number, number, number],
-            }]
-          : []),
+        // Factur-X compliance mention (CGI 289 bis / 289 ter)
+        {
+          text:
+            `Cette facture est délivrée sous le format Factur-X (norme EN 16931, profil ${facturxProfile}) ` +
+            `en vue d'un échange dématérialisé conforme aux articles 289 bis et 289 ter du CGI.`,
+          color: '#666666', fontSize: 8, italics: true,
+          margin: [0, 5, 0, 0] as [number, number, number, number],
+        },
         ...((invoice as any).integrityHash
           ? [{
               text: `Sceau d'intégrité (HMAC-SHA256) : ${String((invoice as any).integrityHash).slice(0, 32)}…`,
@@ -435,6 +473,8 @@ export class InvoicesService {
         companyAddress: { fontSize: 9, color: '#666666' },
         invoiceTitle: { fontSize: 20, bold: true, color: '#1a1a1a' },
         invoiceRef: { fontSize: 11, color: '#333333', margin: [0, 4, 0, 0] },
+        footerLegal: { fontSize: 7, color: '#666666' },
+        footerPage: { fontSize: 7, color: '#999999' },
       },
     };
 
