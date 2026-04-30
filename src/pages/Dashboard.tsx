@@ -6,7 +6,7 @@ import {
   Camera, ShoppingCart, CheckCircle2, ArrowRight, Clock,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useQuotes, useJobs, useInvoices, usePurchases, useTimeEntries, useWorkshopItems, useDashboardMargins } from '@/services/api/hooks';
+import { useQuotes, useJobs, useInvoices, usePurchases, useTimeEntries, useWorkshopItems, useDashboardMargins, useCashflow, usePipelineReport } from '@/services/api/hooks';
 import { CashflowWidget } from '@/components/dashboard/CashflowWidget';
 import { AiBriefingWidget } from '@/components/ai';
 import AiProactiveAlerts from '@/components/ai/AiProactiveAlerts';
@@ -31,6 +31,15 @@ export default function Dashboard() {
   const { data: apiTimeEntries, isLoading: loadingTime } = useTimeEntries();
   const { data: apiWorkshopItems, isLoading: loadingWorkshop } = useWorkshopItems();
   const { data: dashboardMargins } = useDashboardMargins();
+  // /api/dashboard/cashflow runs server-side aggregation across all invoices
+  // (and across all tenants when scope=GROUP). The client-side reduce below
+  // was previously biased to the first 100 paginated invoices, returning a
+  // single tenant's slice in GROUP — visible bug B-NEW-17.
+  const { data: cashflow } = useCashflow(90);
+  // /api/reports/pipeline aggregates quote totals by status across the active
+  // scope (all tenants in GROUP). We tap its 'sent' stage for the Pipeline KPI
+  // so the GROUP figure isn't biased by the /api/quotes pagination slice.
+  const { data: pipelineReport } = usePipelineReport();
 
   const isLoading = loadingQuotes || loadingJobs || loadingInvoices || loadingPurchases || loadingTime || loadingWorkshop;
 
@@ -41,15 +50,21 @@ export default function Dashboard() {
   const timeEntries = useFilterByCompany(apiTimeEntries ?? []);
   const workshopItems = useFilterByCompany(apiWorkshopItems ?? []);
 
-  const totalCA = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0);
+  // Use cashflow snapshot when available — it's aggregated server-side over
+  // every tenant in GROUP scope. Fallback to the (paginated, possibly biased)
+  // client-side reduce only on first paint before the cashflow query resolves.
+  const totalCA = cashflow?.snapshot?.totalReceived
+    ?? invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0);
+  const totalInvoiced = cashflow?.snapshot?.totalOutstanding
+    ?? invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((s, i) => s + i.amount, 0);
+  const purchasesUnpaid = cashflow?.snapshot?.totalPurchasesPending
+    ?? purchases.filter(p => p.status !== 'received').reduce((s, p) => s + p.amount, 0);
+
   const activeJobs = jobs.filter(j => j.status === 'in_progress');
   const pendingQuotes = quotes.filter(q => q.status === 'sent');
   const overdueInvoices = invoices.filter(i => i.status === 'overdue');
   const unreceived = purchases.filter(p => p.status === 'ordered');
   const batPending = workshopItems.filter(w => w.status === 'bat_pending');
-
-  const totalInvoiced = invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((s, i) => s + i.amount, 0);
-  const purchasesUnpaid = purchases.filter(p => p.status !== 'received').reduce((s, p) => s + p.amount, 0);
 
   const avgMargin = dashboardMargins?.avgMargin ?? null;
   const marginColor = avgMargin === null ? 'text-muted-foreground'
@@ -60,30 +75,42 @@ export default function Dashboard() {
   const stats = isComptable ? [
     { label: 'CA encaissé', value: `${(totalCA / 1000).toFixed(0)}k €`, icon: TrendingUp, color: 'text-success' },
     { label: 'Créances', value: `${(totalInvoiced / 1000).toFixed(0)}k €`, icon: Receipt, color: 'text-warning' },
-    { label: 'Factures en retard', value: overdueInvoices.length, icon: AlertTriangle, color: 'text-destructive' },
+    { label: 'Factures en retard', value: cashflow?.expectedInflows?.filter(i => i.status === 'overdue').length ?? overdueInvoices.length, icon: AlertTriangle, color: 'text-destructive' },
     { label: 'Dettes fournisseurs', value: `${(purchasesUnpaid / 1000).toFixed(0)}k €`, icon: ShoppingCart, color: 'text-info' },
   ] : [
     { label: 'CA encaissé', value: `${(totalCA / 1000).toFixed(0)}k €`, icon: TrendingUp, color: 'text-success' },
     { label: 'Marge moyenne', value: avgMargin !== null ? `${avgMargin}%` : '—', icon: TrendingUp, color: marginColor },
     { label: 'Créances', value: `${(totalInvoiced / 1000).toFixed(0)}k €`, icon: Receipt, color: 'text-warning' },
-    { label: 'Pipeline devis', value: `${(pendingQuotes.reduce((s, q) => s + q.amount, 0) / 1000).toFixed(0)}k €`, icon: FileText, color: 'text-primary' },
+    { label: 'Pipeline devis', value: `${(((pipelineReport?.stages?.find(s => s.status === 'sent')?.total) ?? pendingQuotes.reduce((s, q) => s + q.amount, 0)) / 1000).toFixed(0)}k €`, icon: FileText, color: 'text-primary' },
   ];
 
   // Command Center alerts
   const alerts: Alert[] = [];
 
-  // Overdue invoices
-  overdueInvoices.forEach(inv => {
-    alerts.push({
-      id: `inv-${inv.id}`,
-      type: 'danger',
-      icon: Receipt,
-      title: `Facture en retard: ${inv.reference}`,
-      detail: `${inv.clientName} · ${inv.amount.toLocaleString('fr-FR')} € · échue le ${new Date(inv.dueDate).toLocaleDateString('fr-FR')}`,
-      link: '/invoicing',
-      linkLabel: 'Voir',
-    });
-  });
+  // Overdue invoices — prefer the cashflow expectedInflows feed (server-side
+  // aggregation across tenants in GROUP scope). Fall back to the paginated
+  // client-side list while cashflow is still loading.
+  const overdueFromCashflow = (cashflow?.expectedInflows ?? []).filter(i => i.status === 'overdue');
+  const overdueAlerts = overdueFromCashflow.length > 0
+    ? overdueFromCashflow.map(inv => ({
+        id: `inv-${inv.invoiceRef}`,
+        type: 'danger' as const,
+        icon: Receipt,
+        title: `Facture en retard: ${inv.invoiceRef}`,
+        detail: `${inv.clientName} · ${inv.amount.toLocaleString('fr-FR')} € · échue le ${new Date(inv.dueDate).toLocaleDateString('fr-FR')}`,
+        link: '/invoicing',
+        linkLabel: 'Voir',
+      }))
+    : overdueInvoices.map(inv => ({
+        id: `inv-${inv.id}`,
+        type: 'danger' as const,
+        icon: Receipt,
+        title: `Facture en retard: ${inv.reference}`,
+        detail: `${inv.clientName} · ${inv.amount.toLocaleString('fr-FR')} € · échue le ${new Date(inv.dueDate).toLocaleDateString('fr-FR')}`,
+        link: '/invoicing',
+        linkLabel: 'Voir',
+      }));
+  alerts.push(...overdueAlerts);
 
   // Jobs without any photo (real count from API)
   const jobsMissingPhotos = activeJobs.filter(j => (j.photoCount ?? 0) === 0);

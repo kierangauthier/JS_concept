@@ -6,7 +6,11 @@ import { CreateFromQuoteDto, CreateQuoteFromTemplateDto } from './dto/quote-temp
 export class QuoteTemplatesService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(companyId: string) {
+  async findAll(companyId: string | null) {
+    // Quote templates are tenant-bound (each company has its own catalog of
+    // recurring quotes). They have no meaning under the GROUP scope; return
+    // an empty list rather than blowing up with 'companyId must not be null'.
+    if (!companyId) return [];
     return this.prisma.quoteTemplate.findMany({
       where: { companyId },
       include: {
