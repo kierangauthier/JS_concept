@@ -210,6 +210,10 @@ model User {
   passwordHash String
   name         String
   role         UserRole
+  // Group-level admin can switch to the cross-tenant 'GROUP' scope. Reserved
+  // to Acreed Solutions staff. A regular admin of a single company stays
+  // locked to that company by default.
+  isGroupAdmin Boolean  @default(false)
   avatar       String?
   isActive     Boolean  @default(true)
 

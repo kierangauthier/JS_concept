@@ -12,6 +12,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  isGroupAdmin?: boolean;
   company: Company;
   avatar?: string;
   type?: UserType | null;

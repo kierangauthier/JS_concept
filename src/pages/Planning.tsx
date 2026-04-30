@@ -28,6 +28,7 @@ import {
 import { PlanningSlot } from '@/services/api/planning.api';
 import { TeamPlanningSlotData } from '@/services/api/team-planning.api';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { GroupScopeReadOnlyBanner } from '@/components/shared/GroupScopeBlock';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const MIN_HOUR = 6;
@@ -198,7 +199,11 @@ export default function Planning() {
         />
       )}
 
-      {activeJobs.length > 0 && (
+      {selectedCompany === 'GROUP' && (
+        <GroupScopeReadOnlyBanner />
+      )}
+
+      {activeJobs.length > 0 && selectedCompany !== 'GROUP' && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground font-medium uppercase">Chantiers — glissez sur une cellule :</span>
           {activeJobs.map(j => (
