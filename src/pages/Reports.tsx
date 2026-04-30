@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import {
   useHoursReport,
@@ -36,6 +36,54 @@ function formatMonth(ym: string): string {
   const [y, m] = ym.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
 }
+
+// Stable formatter refs (module-scoped) so ResponsiveContainer's reconciler does
+// not see new function identities on every parent render — that was the source
+// of the cascade re-renders that timed out CDP for 30s+ on /reports.
+const yAxisFormatter = (v: number) => `${(v / 1000).toFixed(0)}k`;
+const tooltipFormatter = (v: number) => fmt.currency(v);
+const tooltipLabelStyle = { fontSize: 12 };
+const tooltipContentStyle = { fontSize: 12 };
+const xAxisTickStyle = { fontSize: 11 };
+const yAxisTickStyle = { fontSize: 11 };
+
+const MonthlyRevenueChart = memo(function MonthlyRevenueChart({
+  data,
+}: { data: Array<{ name: string; revenue: number; n: number }> }) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+        <XAxis dataKey="name" tick={xAxisTickStyle} />
+        <YAxis tickFormatter={yAxisFormatter} tick={yAxisTickStyle} />
+        <Tooltip formatter={tooltipFormatter} labelStyle={tooltipLabelStyle} contentStyle={tooltipContentStyle} />
+        <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+});
+
+const PipelineChart = memo(function PipelineChart({
+  data, stageColors,
+}: {
+  data: Array<{ name: string; total: number; count: number; status: string }>;
+  stageColors: Record<string, string>;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+        <XAxis dataKey="name" tick={xAxisTickStyle} />
+        <YAxis tickFormatter={yAxisFormatter} tick={yAxisTickStyle} />
+        <Tooltip formatter={tooltipFormatter} labelStyle={tooltipLabelStyle} contentStyle={tooltipContentStyle} />
+        <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+          {data.map((d, i) => <Cell key={i} fill={stageColors[d.status] ?? 'hsl(var(--primary))'} />)}
+          <LabelList dataKey="count" position="top" style={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+});
 
 export default function Reports() {
   return (
@@ -84,8 +132,17 @@ export default function Reports() {
 function MonthlyRevenueCard() {
   const { data, isLoading } = useMonthlyRevenueReport();
   const months = data?.months ?? [];
-  const total = months.reduce((s, m) => s + m.revenue, 0);
-  const average = months.length > 0 ? Math.round(total / months.length) : 0;
+
+  const { total, average, invoiceCount, chartData } = useMemo(() => {
+    const t = months.reduce((s, m) => s + m.revenue, 0);
+    const inv = months.reduce((s, m) => s + m.invoiceCount, 0);
+    return {
+      total: t,
+      average: months.length > 0 ? Math.round(t / months.length) : 0,
+      invoiceCount: inv,
+      chartData: months.map(m => ({ name: formatMonth(m.month), revenue: m.revenue, n: m.invoiceCount })),
+    };
+  }, [months]);
 
   if (isLoading) return <Skeleton className="h-72 w-full" />;
   if (months.length === 0) {
@@ -96,29 +153,15 @@ function MonthlyRevenueCard() {
     );
   }
 
-  const chartData = months.map(m => ({ name: formatMonth(m.month), revenue: m.revenue, n: m.invoiceCount }));
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <Kpi label="CA total 12 mois" value={fmt.currency(total)} accent="success" />
         <Kpi label="Moyenne mensuelle" value={fmt.currency(average)} />
-        <Kpi label="Factures émises" value={String(months.reduce((s, m) => s + m.invoiceCount, 0))} />
+        <Kpi label="Factures émises" value={String(invoiceCount)} />
       </div>
       <div className="bg-card rounded-lg border p-4">
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-            <Tooltip
-              formatter={(v: number) => fmt.currency(v)}
-              labelStyle={{ fontSize: 12 }}
-              contentStyle={{ fontSize: 12 }}
-            />
-            <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <MonthlyRevenueChart data={chartData} />
       </div>
     </div>
   );
@@ -175,9 +218,22 @@ function TopClientsCard() {
 
 // ─── 3. Pipeline commercial ───────────────────────────────────────────────
 
+const STAGE_COLORS: Record<string, string> = {
+  draft: 'hsl(var(--muted-foreground))',
+  sent: 'hsl(var(--primary))',
+  accepted: 'hsl(var(--success))',
+  refused: 'hsl(var(--destructive))',
+  expired: 'hsl(var(--warning))',
+};
+
 function PipelineCard() {
   const { data, isLoading } = usePipelineReport();
   const stages = data?.stages ?? [];
+
+  const chartData = useMemo(
+    () => stages.map(s => ({ name: s.label, total: s.total, count: s.count, status: s.status })),
+    [stages],
+  );
 
   if (isLoading) return <Skeleton className="h-72 w-full" />;
   if (stages.length === 0) {
@@ -188,15 +244,6 @@ function PipelineCard() {
     );
   }
 
-  const stageColors: Record<string, string> = {
-    draft: 'hsl(var(--muted-foreground))',
-    sent: 'hsl(var(--primary))',
-    accepted: 'hsl(var(--success))',
-    refused: 'hsl(var(--destructive))',
-    expired: 'hsl(var(--warning))',
-  };
-  const chartData = stages.map(s => ({ name: s.label, total: s.total, count: s.count, status: s.status }));
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-5 gap-2">
@@ -205,22 +252,7 @@ function PipelineCard() {
         ))}
       </div>
       <div className="bg-card rounded-lg border p-4">
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-            <Tooltip
-              formatter={(v: number) => fmt.currency(v)}
-              labelStyle={{ fontSize: 12 }}
-              contentStyle={{ fontSize: 12 }}
-            />
-            <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-              {chartData.map((d, i) => <Cell key={i} fill={stageColors[d.status] ?? 'hsl(var(--primary))'} />)}
-              <LabelList dataKey="count" position="top" style={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <PipelineChart data={chartData} stageColors={STAGE_COLORS} />
       </div>
     </div>
   );

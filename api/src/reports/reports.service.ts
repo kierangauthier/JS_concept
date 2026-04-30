@@ -204,6 +204,10 @@ export class ReportsService {
   /** 2. Top 10 clients par CA sur 12 mois. */
   async getTopClients(companyId: string | null) {
     const where = companyId ? `WHERE i."companyId" = '${companyId}' AND i."deletedAt" IS NULL` : 'WHERE i."deletedAt" IS NULL';
+    // jobCount comes from jobs.clientId (not invoices.jobId, which is sparse —
+    // a client can be invoiced via the legacy/import path with no job link).
+    // Subquery filters by the same companyId scope as the outer WHERE.
+    const jobScope = companyId ? `AND j."companyId" = '${companyId}'` : '';
     const rows = await this.prisma.$queryRawUnsafe<Array<{
       clientId: string; clientName: string; revenue: string; jobCount: bigint;
     }>>(`
@@ -211,7 +215,11 @@ export class ReportsService {
         c.id AS "clientId",
         c.name AS "clientName",
         COALESCE(SUM(i.amount), 0)::text AS revenue,
-        COUNT(DISTINCT i."jobId")::bigint AS "jobCount"
+        (
+          SELECT COUNT(*)::bigint
+          FROM jobs j
+          WHERE j."clientId" = c.id AND j."deletedAt" IS NULL ${jobScope}
+        ) AS "jobCount"
       FROM invoices i
       JOIN clients c ON c.id = i."clientId"
       ${where}

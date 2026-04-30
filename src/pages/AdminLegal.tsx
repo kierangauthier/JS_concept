@@ -147,12 +147,12 @@ export default function AdminLegal() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Tabs defaultValue="identity">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="identity">Identité</TabsTrigger>
-            <TabsTrigger value="official">Numéros officiels</TabsTrigger>
-            <TabsTrigger value="address">Adresse</TabsTrigger>
-            <TabsTrigger value="banking">Bancaire</TabsTrigger>
-            <TabsTrigger value="commercial">Commercial</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 h-auto gap-1">
+            <TabsTrigger value="identity" className="text-xs sm:text-sm whitespace-normal">Identité</TabsTrigger>
+            <TabsTrigger value="official" className="text-xs sm:text-sm whitespace-normal">Numéros officiels</TabsTrigger>
+            <TabsTrigger value="address" className="text-xs sm:text-sm whitespace-normal">Adresse</TabsTrigger>
+            <TabsTrigger value="banking" className="text-xs sm:text-sm whitespace-normal">Bancaire</TabsTrigger>
+            <TabsTrigger value="commercial" className="text-xs sm:text-sm whitespace-normal">Commercial</TabsTrigger>
           </TabsList>
 
           <TabsContent value="identity" className="space-y-4 pt-4">
