@@ -49,6 +49,7 @@ export class AuthController {
       name: user.name,
       email: user.email,
       role: user.role,
+      isGroupAdmin: user.isGroupAdmin ?? false,
       company: user.companyCode,
       avatar: user.avatar,
     };
@@ -65,6 +66,7 @@ export class MeController {
       name: user.name,
       email: user.email,
       role: user.role,
+      isGroupAdmin: user.isGroupAdmin ?? false,
       company: user.companyCode,
       avatar: user.avatar,
     };

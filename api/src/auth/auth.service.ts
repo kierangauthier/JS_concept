@@ -142,6 +142,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        isGroupAdmin: user.isGroupAdmin ?? false,
         company: user.company.code,
         avatar: user.avatar,
       },

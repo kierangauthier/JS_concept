@@ -42,11 +42,14 @@ export class CompanyGuard implements CanActivate {
       request.headers['x-company-id'] as string || ''
     ).toUpperCase();
 
-    // Explicit GROUP scope — admin only.
+    // Explicit GROUP scope — only group admins (Acreed staff). Regular
+    // company admins (e.g. e.sauron@js-concept.fr) lose this access:
+    // their data is meaningfully scoped to their tenant, and the cross-
+    // tenant view leaks information.
     if (headerValue === 'GROUP') {
-      if (user.role !== 'admin') {
+      if (!user.isGroupAdmin) {
         throw new ForbiddenException(
-          'GROUP scope is reserved for admin role',
+          "Mode consolidé réservé à l'administration Acreed",
         );
       }
       request.companyId = null;

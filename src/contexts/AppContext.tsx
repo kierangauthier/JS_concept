@@ -49,14 +49,33 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 
+/**
+ * Decides whether a given scope is reachable for a given user. The 'GROUP'
+ * scope is reserved to group-admins (Acreed staff). A regular admin of a
+ * single tenant stays locked to that tenant — no cross-tenant view by default.
+ */
+function isValidScopeForUser(scope: string, user: { isGroupAdmin?: boolean; company: string }): boolean {
+  if (scope === 'GROUP') return Boolean(user.isGroupAdmin);
+  if (scope === 'JS' || scope === 'ASP') {
+    return Boolean(user.isGroupAdmin) || user.company === scope;
+  }
+  return false;
+}
+
+function defaultScopeForUser(user: { isGroupAdmin?: boolean; company: string }): Company {
+  return user.isGroupAdmin ? 'GROUP' : (user.company as Company);
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Bootstrap initial scope from localStorage. Validation happens *after* the
+  // user is loaded (we don't know yet what's allowed). Default to GROUP so the
+  // very first fetch — `/api/me` itself — doesn't break under a stale value.
   const [selectedCompany, setSelectedCompany] = useState<Company>(() => {
     const saved = typeof localStorage !== 'undefined'
       ? localStorage.getItem('selectedCompany')
       : null;
     const initial = (saved as Company) ?? 'GROUP';
-    // Sync authStore synchronously so the very first fetch reads the right scope.
     authStore.setCompanyScope(initial);
     return initial;
   });
@@ -67,9 +86,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     authStore.setCompanyScope(selectedCompany);
     if (!currentUser) return;
-    // Non-admin/conducteur cannot use GROUP — enforce at UI level too
-    if (selectedCompany === 'GROUP' && !['admin', 'conducteur'].includes(currentUser.role)) {
-      setSelectedCompany(currentUser.company as Company);
+    // If the active scope isn't allowed for the current user (e.g. stale
+    // 'GROUP' from a previous session, or a tenant the user is not part of),
+    // reset to their default. The bootstrap effect already does this, but
+    // this guards against later state changes too.
+    if (!isValidScopeForUser(selectedCompany, currentUser)) {
+      setSelectedCompany(defaultScopeForUser(currentUser));
     }
   }, [selectedCompany, currentUser]);
 
@@ -83,20 +105,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // On mount: try to restore session via httpOnly cookie.
-  // The cookie is sent automatically with credentials:include — no localStorage check needed.
   useEffect(() => {
     const tryRestore = async () => {
       try {
         const user = await authApi.me();
         setCurrentUser(user);
         setIsAuthenticated(true);
-        // If user's company doesn't allow GROUP scope, lock to their company
-        if (!['admin', 'conducteur'].includes(user.role)) {
-          const scope = user.company as Company;
-          authStore.setCompanyScope(scope);
-          localStorage.setItem('selectedCompany', scope);
-          setSelectedCompany(scope);
-        }
+
+        // Pick a valid scope: keep the localStorage value if it's still
+        // allowed, otherwise default to the user's natural scope.
+        const stored = localStorage.getItem('selectedCompany');
+        const scope: Company = stored && isValidScopeForUser(stored, user)
+          ? (stored as Company)
+          : defaultScopeForUser(user);
+        authStore.setCompanyScope(scope);
+        localStorage.setItem('selectedCompany', scope);
+        setSelectedCompany(scope);
       } catch {
         // 401 = no valid session, user must log in
         authStore.setTokens(null);
@@ -113,12 +137,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentUser(data.user);
     setIsAuthenticated(true);
     authStore.resetSessionExpiredFlag();
-    // Set initial company scope based on role
-    const initialScope: Company = ['admin', 'conducteur'].includes(data.user.role)
-      ? 'GROUP'
-      : (data.user.company as Company);
-    // Update authStore + localStorage SYNCHRONOUSLY before setSelectedCompany so
-    // the first fetch after login reads the right scope (avoid GROUP/JS race).
+    // Default scope at login: GROUP for group admins (Acreed), the user's
+    // own company otherwise. Update authStore + localStorage SYNCHRONOUSLY
+    // before setSelectedCompany so the first fetches after login read the
+    // right scope (avoids the GROUP/JS race that PR #30 fixed).
+    const initialScope = defaultScopeForUser(data.user);
     authStore.setCompanyScope(initialScope);
     localStorage.setItem('selectedCompany', initialScope);
     setSelectedCompany(initialScope);
@@ -137,11 +160,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleSetSelectedCompany = useCallback((company: Company) => {
     if (!currentUser) return;
-    // Prevent non-admin/conducteur from selecting GROUP or other company
-    if (company === 'GROUP' && !['admin', 'conducteur'].includes(currentUser.role)) {
-      return;
-    }
-    if (company !== 'GROUP' && company !== currentUser.company && !['admin', 'conducteur'].includes(currentUser.role)) {
+    if (!isValidScopeForUser(company, currentUser)) {
+      // Silent drop for the legacy ASP/JS path the validation always rejected;
+      // explicit error for the GROUP attempt so the user knows why nothing
+      // happened.
+      if (company === 'GROUP') {
+        toast.error("Vous n'avez pas accès à la vue consolidée.");
+      }
       return;
     }
     // CRITICAL: update authStore SYNCHRONOUSLY before triggering the state change.
@@ -153,8 +178,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     authStore.setCompanyScope(company);
     localStorage.setItem('selectedCompany', company);
     // Drop every cached entry from the previous scope so the UI never shows
-    // stale items from another tenant during the brief refetch window. Brutal
-    // but bulletproof — every active query refetches under the new scope.
+    // stale items from another tenant during the brief refetch window.
     queryClient.removeQueries();
     setSelectedCompany(company);
   }, [currentUser]);
