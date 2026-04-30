@@ -137,7 +137,7 @@ export default function AdminLegal() {
   }
 
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="space-y-4">
       <PageHeader
         title="Informations légales"
         subtitle={legal ? `Entité : ${legal.name}` : 'Identité, numéros officiels, conditions commerciales'}

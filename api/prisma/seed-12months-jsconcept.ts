@@ -283,7 +283,7 @@ async function main() {
   // ─── 2. USERS (10) ─────────────────────────────────────────────────────────
   await prisma.user.createMany({
     data: [
-      { id: U.admin1, email: 'e.sauron@js-concept.fr',        passwordHash: hash, name: 'Éric SAURON',       role: 'admin',       companyId: JS },
+      { id: U.admin1, email: 'e.sauron@js-concept.fr',        passwordHash: hash, name: 'Emmanuel SAURON',   role: 'admin',       companyId: JS },
       { id: U.admin2, email: 'b.faure@js-concept.fr',         passwordHash: hash, name: 'Baptiste FAURE',    role: 'conducteur',  companyId: JS },
       { id: U.t1,     email: 'yann.leblanc@js-concept.fr',    passwordHash: hash, name: 'Yann LEBLANC',      role: 'technicien',  companyId: JS },
       { id: U.t2,     email: 'thomas.rey@js-concept.fr',      passwordHash: hash, name: 'Thomas REY',        role: 'technicien',  companyId: JS },

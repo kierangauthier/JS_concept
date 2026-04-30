@@ -492,12 +492,16 @@ export class QuotesService {
     const tva = Math.round(amount * tvaRate * 100) / 100;
     const ttc = Math.round((amount + tva) * 100) / 100;
 
-    const companyName = quote.company.code === 'ASP' ? 'ASP Signalisation' : 'JS Concept';
-    // Tagline only — companyName prints right above it, no need to repeat. Will
-    // become configurable via the legal-info admin screen (PR #34).
-    const companyAddress = quote.company.code === 'ASP'
-      ? 'Signalisation & Marquage routier'
-      : 'Signalisation & Aménagement';
+    // Read full legal info populated via /admin/legal (PR #34a).
+    const c: any = quote.company;
+    const companyName = c.legalName ?? (c.code === 'ASP' ? 'ASP Signalisation' : 'JS Concept');
+    const companyTagline = c.tagline ?? (c.code === 'ASP' ? 'Signalisation & Marquage routier' : 'Signalisation & Aménagement');
+    const companyAddrLines = [
+      c.addressLine1,
+      c.addressLine2,
+      [c.postalCode, c.city].filter(Boolean).join(' '),
+    ].filter((l) => l && String(l).trim().length > 0);
+    const companyContactBits = [c.phone, c.email, c.website].filter((s) => s && String(s).trim().length > 0);
 
     const formatDate = (d: Date) => d.toLocaleDateString('fr-FR');
     // Manual fr-FR formatter: toLocaleString emits a thin non-breaking space
@@ -509,6 +513,25 @@ export class QuotesService {
       const withSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
       return `${withSpaces},${decPart}`;
     };
+
+    // Per-page legal footer — required for French invoicing/quoting compliance.
+    const buildLegalFooter = (): string => {
+      const parts: string[] = [];
+      const head: string[] = [];
+      head.push(companyName);
+      if (c.legalForm) head.push(c.legalForm);
+      if (c.shareCapital != null) head.push(`au capital de ${fmtPrice(Number(c.shareCapital))} €`);
+      parts.push(head.join(' '));
+      if (companyAddrLines.length) parts.push(`Siège : ${companyAddrLines.join(', ')}`);
+      const ids: string[] = [];
+      if (c.siret) ids.push(`SIRET ${c.siret}`);
+      if (c.rcsCity) ids.push(`RCS ${c.rcsCity}${c.siren ? ' B ' + c.siren : ''}`);
+      if (c.apeCode) ids.push(`APE ${c.apeCode}`);
+      if (c.vatNumber) ids.push(`TVA ${c.vatNumber}`);
+      if (ids.length) parts.push(ids.join(' · '));
+      return parts.join('\n');
+    };
+    const legalFooter = buildLegalFooter();
 
     const printer = new PdfPrinter({
       Helvetica: {
@@ -545,10 +568,32 @@ export class QuotesService {
 
     const docDefinition: TDocumentDefinitions = {
       defaultStyle: { font: 'Helvetica', fontSize: 10 },
-      pageMargins: [40, 60, 40, 60],
+      // Bottom margin extended to leave room for the legal footer.
+      pageMargins: [40, 60, 40, 90],
+      footer: (currentPage: number, pageCount: number) => ({
+        margin: [40, 0, 40, 20],
+        columns: [
+          { text: legalFooter, style: 'footerLegal', width: '*' },
+          { text: `Page ${currentPage} / ${pageCount}`, style: 'footerPage', alignment: 'right', width: 70 },
+        ],
+      }),
       content: [
-        { text: companyName, style: 'companyName' },
-        { text: companyAddress, style: 'companyAddress', margin: [0, 0, 0, 20] },
+        {
+          columns: [
+            {
+              width: '*',
+              stack: [
+                { text: companyName, style: 'companyName' },
+                { text: companyTagline, style: 'companyAddress' },
+                ...companyAddrLines.map((l) => ({ text: l, style: 'companyAddress' })),
+                ...(companyContactBits.length
+                  ? [{ text: companyContactBits.join(' · '), style: 'companyAddress', margin: [0, 4, 0, 0] as [number, number, number, number] }]
+                  : []),
+              ],
+            },
+          ],
+          margin: [0, 0, 0, 20] as [number, number, number, number],
+        },
 
         {
           columns: [
@@ -627,6 +672,8 @@ export class QuotesService {
         companyAddress: { fontSize: 9, color: '#666666' },
         invoiceTitle: { fontSize: 20, bold: true, color: '#1a1a1a' },
         invoiceRef: { fontSize: 11, color: '#333333', margin: [0, 4, 0, 0] },
+        footerLegal: { fontSize: 7, color: '#666666' },
+        footerPage: { fontSize: 7, color: '#999999' },
       },
     };
 
