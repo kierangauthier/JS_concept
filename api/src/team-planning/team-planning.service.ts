@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
 import { CreateTeamSlotDto, WeekActionDto } from './dto/team-planning.dto';
+import { getHolidayName } from '../lib/holidays';
 
 @Injectable()
 export class TeamPlanningService {
@@ -138,6 +140,15 @@ export class TeamPlanningService {
     if (!companyId) throw new ForbiddenException('Cannot create under GROUP scope');
     if (dto.endHour <= dto.startHour) throw new BadRequestException('endHour must be greater than startHour');
 
+    // Refuse public holidays — the frontend already hides the affordance, but
+    // a direct API call must be blocked too. (B-NEW-3 from the night audit.)
+    const holidayName = getHolidayName(dto.date);
+    if (holidayName) {
+      throw new BadRequestException(
+        `Impossible de planifier sur un jour férié (${holidayName})`,
+      );
+    }
+
     const weekStartDate = this.getWeekStart(dto.date);
 
     const week = await this.prisma.teamPlanningWeek.upsert({
@@ -168,20 +179,33 @@ export class TeamPlanningService {
       );
     }
 
-    const slot = await this.prisma.teamPlanningSlot.create({
-      data: {
-        weekId: week.id,
-        teamId: dto.teamId,
-        date: new Date(dto.date),
-        startHour: dto.startHour,
-        endHour: dto.endHour,
-        jobId: dto.jobId,
-        notes: dto.notes,
-      },
-      include: {
-        job: { select: { id: true, reference: true, title: true, address: true, requiredCertifications: true } },
-      },
-    });
+    let slot;
+    try {
+      slot = await this.prisma.teamPlanningSlot.create({
+        data: {
+          weekId: week.id,
+          teamId: dto.teamId,
+          date: new Date(dto.date),
+          startHour: dto.startHour,
+          endHour: dto.endHour,
+          jobId: dto.jobId,
+          notes: dto.notes,
+        },
+        include: {
+          job: { select: { id: true, reference: true, title: true, address: true, requiredCertifications: true } },
+        },
+      });
+    } catch (err) {
+      // Map Prisma FK violations (P2003) to a clean 400 instead of leaking the
+      // raw 'Foreign key constraint violated' stack to the toaster. The 3 FKs
+      // on this table are weekId / teamId / jobId — a P2003 here almost
+      // always means an unknown jobId or a team from another tenant.
+      // (B-NEW-2 from the night audit.)
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+        throw new BadRequestException('Chantier ou équipe inconnu(e)');
+      }
+      throw err;
+    }
 
     // Check certification warnings
     const warnings: string[] = [];

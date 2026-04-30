@@ -12,7 +12,7 @@ export default function LoginPage() {
   const location = useLocation();
   const redirectTo =
     (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/';
-  const [email, setEmail] = useState('marc@asp-signalisation.fr');
+  const [email, setEmail] = useState('e.sauron@js-concept.fr');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -74,21 +74,22 @@ export default function LoginPage() {
         <div className="text-xs text-muted-foreground space-y-1 border-t pt-4">
           <p className="font-medium">Comptes de démo :</p>
           {[
-            { email: 'marc@asp-signalisation.fr', role: 'Admin ASP' },
-            { email: 'thomas@jsconcept.fr', role: 'Conducteur JS' },
-            { email: 'karim@asp-signalisation.fr', role: 'Technicien ASP' },
-            { email: 'sophie@jsconcept.fr', role: 'Comptable JS' },
+            { email: 'admin@acreediasolutions.com',  role: 'Admin Acreed (vue consolidée)' },
+            { email: 'e.sauron@js-concept.fr',       role: 'Admin JS Concept' },
+            { email: 'admin@asp-signalisation.fr',   role: 'Admin ASP Signalisation' },
+            { email: 'b.faure@js-concept.fr',        role: 'Conducteur JS' },
+            { email: 'yann.leblanc@js-concept.fr',   role: 'Technicien JS' },
           ].map((u) => (
             <button
               key={u.email}
               type="button"
               className="block w-full text-left hover:text-foreground transition-colors cursor-pointer"
-              onClick={() => { setEmail(u.email); setPassword('password123'); }}
+              onClick={() => { setEmail(u.email); setPassword('Demo1234!'); }}
             >
               {u.role} — {u.email}
             </button>
           ))}
-          <p className="text-muted-foreground mt-1">Mot de passe : password123</p>
+          <p className="text-muted-foreground mt-1">Mot de passe : <code>Demo1234!</code></p>
         </div>
       </div>
     </div>

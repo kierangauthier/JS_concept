@@ -317,7 +317,12 @@ export default function Invoicing() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Facturation" subtitle={`${invoices.length} factures`} action={{ label: 'Nouvelle facture', onClick: openCreateForm }}>
+      <PageHeader title="Facturation" subtitle={`${invoices.length} factures`} action={{
+        label: 'Nouvelle facture',
+        onClick: openCreateForm,
+        disabled: selectedCompany === 'GROUP',
+        disabledHint: "Sélectionnez une entité (JS ou ASP) pour créer une facture.",
+      }}>
         <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => setFecOpen(true)}>
           <Download className="h-3 w-3" /> Export compta
         </Button>
