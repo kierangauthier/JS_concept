@@ -493,12 +493,22 @@ export class QuotesService {
     const ttc = Math.round((amount + tva) * 100) / 100;
 
     const companyName = quote.company.code === 'ASP' ? 'ASP Signalisation' : 'JS Concept';
+    // Tagline only — companyName prints right above it, no need to repeat. Will
+    // become configurable via the legal-info admin screen (PR #34).
     const companyAddress = quote.company.code === 'ASP'
-      ? 'ASP Signalisation\nSignalisation & Marquage routier'
-      : 'JS Concept\nSignalisation & Aménagement';
+      ? 'Signalisation & Marquage routier'
+      : 'Signalisation & Aménagement';
 
     const formatDate = (d: Date) => d.toLocaleDateString('fr-FR');
-    const fmtPrice = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2 });
+    // Manual fr-FR formatter: toLocaleString emits a thin non-breaking space
+    // (U+202F) as the thousands separator that Helvetica/Roboto can't render
+    // (shows up as '/'). We rebuild the format with an ASCII space.
+    const fmtPrice = (n: number): string => {
+      const fixed = n.toFixed(2);
+      const [intPart, decPart] = fixed.split('.');
+      const withSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+      return `${withSpaces},${decPart}`;
+    };
 
     const printer = new PdfPrinter({
       Helvetica: {
