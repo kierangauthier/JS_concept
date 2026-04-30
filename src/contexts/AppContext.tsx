@@ -242,7 +242,7 @@ export const navItems: NavItem[] = [
   { title: 'Paramètres',         path: '/admin',          icon: 'Settings',        roles: ['admin'] },
 
   // ─── Assistant IA (bas de sidebar) ───────────────────────────────────────
-  { title: 'Assistant IA',       path: '/assistant',      icon: 'Sparkles',        roles: ['admin', 'conducteur', 'comptable', 'collaborateur'], group: '─', comingSoon: true },
+  { title: 'Assistant IA conversationnel', path: '/assistant', icon: 'Sparkles', roles: ['admin', 'conducteur', 'comptable', 'collaborateur'], group: '─', comingSoon: true },
 ];
 
 export function getNavForRole(role: UserRole): NavItem[] {

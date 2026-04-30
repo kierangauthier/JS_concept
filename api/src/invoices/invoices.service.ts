@@ -374,8 +374,11 @@ export class InvoicesService {
                 { text: 'Client', bold: true, margin: [0, 0, 0, 4] },
                 { text: invoice.client?.name ?? 'N/A' },
                 { text: invoice.client?.address ?? '' },
-                { text: `${invoice.client?.city ?? ''}` },
-                { text: invoice.client?.email ?? '', color: '#666666', margin: [0, 4, 0, 0] },
+                { text: [(invoice.client as any)?.postalCode, invoice.client?.city].filter(Boolean).join(' ') },
+                ...((invoice.client as any)?.siret
+                  ? [{ text: `SIRET ${(invoice.client as any).siret}`, color: '#666666', fontSize: 9 }]
+                  : []),
+                { text: invoice.client?.email ?? '', color: '#666666', margin: [0, 4, 0, 0] as [number, number, number, number] },
               ],
             },
           ],

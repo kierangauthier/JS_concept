@@ -28,10 +28,13 @@ export interface Client {
   phone: string;
   address: string;
   city: string;
+  postalCode?: string | null;
   company: Company;
   type: 'public' | 'private';
   createdAt: string;
+  siren?: string | null;
   siret?: string | null;
+  apeCode?: string | null;
   vatNumber?: string | null;
   billingAddress?: string | null;
   billingCity?: string | null;

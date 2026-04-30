@@ -313,6 +313,10 @@ model Client {
   phone       String
   address     String
   city        String
+  postalCode  String?
+  siren       String?
+  siret       String?
+  apeCode     String?
   type        ClientType
   externalRef String?
 

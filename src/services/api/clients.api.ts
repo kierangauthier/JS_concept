@@ -15,6 +15,10 @@ export interface CreateClientPayload {
   phone: string;
   address: string;
   city: string;
+  postalCode?: string;
+  siren?: string;
+  siret?: string;
+  apeCode?: string;
   type: 'public' | 'private';
 }
 
