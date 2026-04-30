@@ -66,6 +66,7 @@ export interface Quote {
   clientAddress?: string;
   subject: string;
   amount: number;
+  vatRate?: number;
   status: QuoteStatus;
   company: Company;
   createdAt: string;

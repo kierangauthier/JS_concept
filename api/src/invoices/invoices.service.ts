@@ -264,9 +264,10 @@ export class InvoicesService {
     if (!invoice) throw new NotFoundException('Invoice not found');
 
     const amount = Number(invoice.amount);
-    const tvaRate = invoice.vatRate != null ? Number(invoice.vatRate) / 100 : 0.2;
-    const tva = Math.round(amount * tvaRate * 100) / 100;
+    const vatRatePercent = invoice.vatRate != null ? Number(invoice.vatRate) : 20;
+    const tva = Math.round(amount * (vatRatePercent / 100) * 100) / 100;
     const ttc = Math.round((amount + tva) * 100) / 100;
+    const vatLabel = `TVA ${vatRatePercent.toString().replace('.', ',').replace(/,00?$/, '')}%`;
 
     const c = invoice.company as any;
     const companyName = c.legalName ?? c.name;
@@ -414,7 +415,7 @@ export class InvoicesService {
                 widths: ['*', 100],
                 body: [
                   ['Total HT', { text: `${fmtPrice(amount)} \u20AC`, alignment: 'right' }],
-                  ['TVA 20%', { text: `${fmtPrice(tva)} \u20AC`, alignment: 'right' }],
+                  [vatLabel, { text: `${fmtPrice(tva)} \u20AC`, alignment: 'right' }],
                   [
                     { text: 'Total TTC', bold: true, fontSize: 12 },
                     { text: `${fmtPrice(ttc)} \u20AC`, alignment: 'right', bold: true, fontSize: 12 },

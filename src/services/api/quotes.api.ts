@@ -17,6 +17,7 @@ export interface CreateQuotePayload {
   clientId: string;
   subject: string;
   validUntil: string;
+  vatRate?: number;
   lines: {
     designation: string;
     unit: string;

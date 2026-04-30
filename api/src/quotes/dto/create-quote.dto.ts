@@ -22,6 +22,7 @@ export class CreateQuoteDto {
   @IsString() clientId: string;
   @IsString() subject: string;
   @IsOptional() @IsNumber() amount?: number;
+  @IsOptional() @IsNumber() vatRate?: number;
   @IsDateString() validUntil: string;
 
   @IsOptional()
@@ -34,6 +35,7 @@ export class CreateQuoteDto {
 export class UpdateQuoteDto {
   @IsOptional() @IsString() subject?: string;
   @IsOptional() @IsNumber() amount?: number;
+  @IsOptional() @IsNumber() vatRate?: number;
   @IsOptional() @IsDateString() validUntil?: string;
   @IsOptional()
   @IsEnum(['draft', 'sent', 'accepted', 'refused', 'expired'])

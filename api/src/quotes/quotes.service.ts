@@ -41,6 +41,7 @@ export class QuotesService {
       clientAddress: q.client?.address ?? '',
       subject: q.subject,
       amount: Number(q.amount),
+      vatRate: q.vatRate != null ? Number(q.vatRate) : 20,
       status: q.status,
       company: q.company?.code ?? '',
       createdAt: q.createdAt.toISOString(),
@@ -132,6 +133,7 @@ export class QuotesService {
           reference: ref,
           subject: dto.subject,
           amount,
+          vatRate: dto.vatRate ?? 20,
           validUntil: new Date(dto.validUntil),
           clientId: dto.clientId,
           companyId,
@@ -232,6 +234,7 @@ export class QuotesService {
         data: {
           subject: dto.subject,
           amount: amount,
+          vatRate: dto.vatRate,
           status: dto.status as any,
           validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         },
@@ -488,9 +491,11 @@ export class QuotesService {
     if (!quote) throw new NotFoundException('Quote not found');
 
     const amount = Number(quote.amount);
-    const tvaRate = 0.20;
-    const tva = Math.round(amount * tvaRate * 100) / 100;
+    const vatRatePercent = quote.vatRate != null ? Number(quote.vatRate) : 20;
+    const tva = Math.round(amount * (vatRatePercent / 100) * 100) / 100;
     const ttc = Math.round((amount + tva) * 100) / 100;
+    // Display rate: drop trailing zeros, use comma separator (5,5 not 5.50)
+    const vatLabel = `TVA ${vatRatePercent.toString().replace('.', ',').replace(/,00?$/, '')}%`;
 
     // Read full legal info populated via /admin/legal (PR #34a).
     const c: any = quote.company;
@@ -643,7 +648,7 @@ export class QuotesService {
                 widths: ['*', 100],
                 body: [
                   ['Total HT', { text: `${fmtPrice(amount)} €`, alignment: 'right' }],
-                  ['TVA 20%', { text: `${fmtPrice(tva)} €`, alignment: 'right' }],
+                  [vatLabel, { text: `${fmtPrice(tva)} €`, alignment: 'right' }],
                   [
                     { text: 'Total TTC', bold: true, fontSize: 12 },
                     { text: `${fmtPrice(ttc)} €`, alignment: 'right', bold: true, fontSize: 12 },
