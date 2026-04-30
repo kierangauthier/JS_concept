@@ -237,7 +237,12 @@ export default function Jobs() {
       <PageHeader
         title="Chantiers"
         subtitle={`${jobs.length} chantiers`}
-        action={{ label: 'Nouveau chantier', onClick: openCreateForm }}
+        action={{
+          label: 'Nouveau chantier',
+          onClick: openCreateForm,
+          disabled: selectedCompany === 'GROUP',
+          disabledHint: "Sélectionnez une entité (JS ou ASP) pour créer un chantier.",
+        }}
       >
         <div className="flex items-center border rounded-md overflow-hidden">
           <button className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'table' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} onClick={() => setViewMode('table')}>

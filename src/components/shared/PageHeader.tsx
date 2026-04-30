@@ -2,6 +2,15 @@ import { ReactNode, isValidElement } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
+interface PageHeaderActionObject {
+  label: string;
+  onClick: () => void;
+  /** When true, the CTA renders disabled (used for GROUP scope on entity-bound creates). */
+  disabled?: boolean;
+  /** Tooltip-like text shown via `title` when the CTA is disabled. */
+  disabledHint?: string;
+}
+
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
@@ -9,11 +18,11 @@ interface PageHeaderProps {
    * Either a simple `{ label, onClick }` that renders a primary CTA, or an arbitrary
    * ReactNode for pages that need several buttons / custom toolbars.
    */
-  action?: { label: string; onClick: () => void } | ReactNode;
+  action?: PageHeaderActionObject | ReactNode;
   children?: ReactNode;
 }
 
-function isActionObject(value: unknown): value is { label: string; onClick: () => void } {
+function isActionObject(value: unknown): value is PageHeaderActionObject {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -33,7 +42,13 @@ export function PageHeader({ title, subtitle, action, children }: PageHeaderProp
       <div className="flex items-center gap-2">
         {children}
         {isActionObject(action) ? (
-          <Button onClick={action.onClick} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+          <Button
+            onClick={action.onClick}
+            disabled={action.disabled}
+            title={action.disabled ? action.disabledHint : undefined}
+            size="sm"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+          >
             <Plus className="mr-1 h-4 w-4" />
             {action.label}
           </Button>

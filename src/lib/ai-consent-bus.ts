@@ -9,22 +9,31 @@
 
 export type AiConsentListener = () => void;
 
-const listeners = new Set<AiConsentListener>();
+const requestListeners = new Set<AiConsentListener>();
+const grantedListeners = new Set<AiConsentListener>();
 
 export const aiConsentBus = {
   /** Emit: call this when an API response indicates consent is required. */
   request() {
-    for (const l of listeners) {
-      try {
-        l();
-      } catch {
-        // A listener must never break the chain.
-      }
+    for (const l of requestListeners) {
+      try { l(); } catch { /* a listener must never break the chain */ }
     }
   },
-  /** Subscribe. Returns the unsubscribe function. */
+  /** Subscribe to the 'request consent' event. Returns the unsubscribe fn. */
   subscribe(listener: AiConsentListener): () => void {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
+    requestListeners.add(listener);
+    return () => requestListeners.delete(listener);
+  },
+
+  /** Emit: call this after a successful consent. */
+  granted() {
+    for (const l of grantedListeners) {
+      try { l(); } catch { /* … */ }
+    }
+  },
+  /** Subscribe to 'consent granted' so widgets can refetch their data. */
+  subscribeGranted(listener: AiConsentListener): () => void {
+    grantedListeners.add(listener);
+    return () => grantedListeners.delete(listener);
   },
 };

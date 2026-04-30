@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AppSidebar } from './AppSidebar';
 import { Topbar } from './Topbar';
 import { MobileNav } from './MobileNav';
@@ -9,6 +10,7 @@ import { aiConsentBus } from '@/lib/ai-consent-bus';
 
 export function AppLayout() {
   const [consentOpen, setConsentOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     return aiConsentBus.subscribe(() => setConsentOpen(true));
@@ -25,7 +27,19 @@ export function AppLayout() {
         <LegalFooter />
       </div>
       <MobileNav />
-      <AiConsentModal open={consentOpen} onOpenChange={setConsentOpen} />
+      <AiConsentModal
+        open={consentOpen}
+        onOpenChange={setConsentOpen}
+        onGranted={() => {
+          // Invalidate every AI-related query + the consent history so the
+          // proactive widget refetches now that the consent flag is true,
+          // and broadcast on the bus for non-react-query consumers
+          // (AiProactiveAlerts manages its own local state).
+          queryClient.invalidateQueries({ queryKey: ['ai'] });
+          queryClient.invalidateQueries({ queryKey: ['consent-history'] });
+          aiConsentBus.granted();
+        }}
+      />
     </div>
   );
 }

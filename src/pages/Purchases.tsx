@@ -125,7 +125,12 @@ export default function Purchases() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Achats" subtitle={`${purchases.length} commandes`} action={{ label: 'Nouvelle demande', onClick: openCreateForm }} />
+      <PageHeader title="Achats" subtitle={`${purchases.length} commandes`} action={{
+        label: 'Nouvelle demande',
+        onClick: openCreateForm,
+        disabled: selectedCompany === 'GROUP',
+        disabledHint: "Sélectionnez une entité (JS ou ASP) pour créer une commande.",
+      }} />
       {/* Workflow status filter */}
       <div className="flex gap-2 flex-wrap">
         {[

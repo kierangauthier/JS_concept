@@ -344,7 +344,12 @@ export default function Quotes() {
       <PageHeader
         title="Devis"
         subtitle={`${quotes.length} devis`}
-        action={{ label: 'Nouveau devis', onClick: openCreateForm }}
+        action={{
+          label: 'Nouveau devis',
+          onClick: openCreateForm,
+          disabled: selectedCompany === 'GROUP',
+          disabledHint: "Sélectionnez une entité (JS ou ASP) pour créer un devis.",
+        }}
       >
         <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => {
           setSelectedTemplateId('');

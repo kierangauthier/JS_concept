@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { aiConsentBus } from '@/lib/ai-consent-bus';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -105,6 +106,9 @@ export default function AiProactiveAlerts() {
 
   useEffect(() => { loadAlerts(); }, []);
 
+  // Refetch as soon as the user grants consent via the global modal.
+  useEffect(() => aiConsentBus.subscribeGranted(loadAlerts), []);
+
   function openEmail(alert: ProactiveAlert) {
     setEmailDialog(alert);
     setEmailBody(alert.draftMessage ?? '');
@@ -169,13 +173,23 @@ export default function AiProactiveAlerts() {
             <ShieldOff className="h-8 w-8 mx-auto mb-2 text-amber-400" />
             <p className="font-medium text-gray-700">Assistant IA indisponible</p>
             <p className="text-xs text-gray-500 mt-1">
-              Activez le consentement IA dans votre profil pour recevoir les alertes proactives.
+              Activez le consentement IA pour recevoir les alertes proactives.
             </p>
-            <Link to="/account">
-              <Button size="sm" variant="outline" className="mt-3 text-xs h-7">
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <Button
+                size="sm"
+                variant="default"
+                className="text-xs h-7"
+                onClick={() => aiConsentBus.request()}
+              >
                 Activer le consentement
               </Button>
-            </Link>
+              <Link to="/account">
+                <Button size="sm" variant="outline" className="text-xs h-7">
+                  Mon compte
+                </Button>
+              </Link>
+            </div>
           </div>
         )}
         {error?.kind === 'unavailable' && !loading && (
