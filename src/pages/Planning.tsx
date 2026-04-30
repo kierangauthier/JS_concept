@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { CompanyBadge } from '@/components/shared/StatusBadge';
 import { CompanySelect } from '@/components/shared/CompanySelect';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, ChevronRight, X, Plus, Lock, Unlock, Send, Users, UserPlus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Plus, Lock, Unlock, Send, Users, UserPlus, Trash2, Eye } from 'lucide-react';
 import {
   useJobs, usePlanningSlots, useCreateSlot, useDeleteSlot,
   useTeams, useCreateTeam, useAddTeamMember, useRemoveTeamMember,
@@ -220,6 +221,7 @@ function TeamPlanningView({
   isAdmin: boolean;
   onOpenTeamDrawer: () => void;
 }) {
+  const navigate = useNavigate();
   const { data: weekData } = useTeamPlanning(weekStart);
   const createSlot = useCreateTeamSlot();
   const deleteSlot = useDeleteTeamSlot();
@@ -490,14 +492,24 @@ function TeamPlanningView({
                                 title={isLocked ? `${slot.startHour}h-${slot.endHour}h: ${slot.jobRef} — ${slot.jobTitle}` : `${slot.startHour}h-${slot.endHour}h: ${slot.jobRef} — ${slot.jobTitle}\nGlissez pour déplacer`}
                               >
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-[10px] font-bold font-mono truncate">{slot.jobRef}</div>
-                                  {height >= 40 && (
-                                    <div className="text-[8px] truncate opacity-80">{slot.startHour}h-{slot.endHour}h</div>
+                                  <div className="text-xs font-bold font-mono truncate leading-tight">{slot.jobRef}</div>
+                                  {height >= 30 && (
+                                    <div className="text-[10px] truncate opacity-90 leading-tight">{slot.jobTitle}</div>
+                                  )}
+                                  {height >= 50 && (
+                                    <div className="text-[10px] truncate opacity-70 leading-tight">{slot.startHour}h-{slot.endHour}h</div>
                                   )}
                                 </div>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/jobs?openJob=${slot.jobId}`); }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 hover:scale-110"
+                                  title="Voir le chantier"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </button>
                                 {!isLocked && (
                                   <button
-                                    onClick={() => setSlotToDelete(slot)}
+                                    onClick={(e) => { e.stopPropagation(); setSlotToDelete(slot); }}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                                     title="Retirer le créneau"
                                   >
@@ -655,6 +667,7 @@ function TechPlanningView({
   assignCompany: 'ASP' | 'JS';
   selectedCompany: string;
 }) {
+  const navigate = useNavigate();
   const { data: allUsers = [] } = useUsers();
   const technicians = useFilterByCompany(allUsers.filter(u => u.role === 'technicien'));
 
@@ -711,10 +724,17 @@ function TechPlanningView({
                 {slot ? (
                   <div className={`rounded px-2 py-1 h-full flex items-center gap-1 group ${jobColorMap[slot.jobId] || 'bg-muted'}`}>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-bold font-mono truncate">{slot.jobRef}</div>
-                      <div className="text-[9px] truncate opacity-80">{slot.jobTitle}</div>
+                      <div className="text-xs font-bold font-mono truncate leading-tight">{slot.jobRef}</div>
+                      <div className="text-[10px] truncate opacity-90 leading-tight">{slot.jobTitle}</div>
                     </div>
-                    <button onClick={() => deleteSlot.mutate(slot.id)} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      onClick={() => navigate(`/jobs?openJob=${slot.jobId}`)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 hover:scale-110"
+                      title="Voir le chantier"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => deleteSlot.mutate(slot.id)} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="Retirer le créneau">
                       <X className="h-3 w-3" />
                     </button>
                   </div>

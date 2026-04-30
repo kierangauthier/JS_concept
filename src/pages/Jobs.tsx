@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useFormGuard } from '@/hooks/use-dirty-form';
 import { useUrlState } from '@/hooks/use-url-state';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
@@ -38,6 +39,20 @@ export default function Jobs() {
   const allJobs: Job[] = apiJobs ?? [];
   const jobs = useFilterByCompany(allJobs);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const openJobId = searchParams.get('openJob');
+    if (openJobId && jobs.length > 0) {
+      const job = jobs.find(j => j.id === openJobId);
+      if (job) {
+        setSelectedJob(job);
+        searchParams.delete('openJob');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [searchParams, jobs, setSearchParams]);
+
   const [viewModeRaw, setViewModeRaw] = useUrlState('view', 'table');
   const viewMode = (viewModeRaw === 'timeline' ? 'timeline' : 'table') as 'table' | 'timeline';
   const setViewMode = (v: 'table' | 'timeline') => setViewModeRaw(v);
