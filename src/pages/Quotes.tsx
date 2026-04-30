@@ -564,7 +564,7 @@ export default function Quotes() {
               </div>
 
               <Tabs defaultValue="lines" className="w-full">
-                <TabsList className="w-full grid grid-cols-5 h-9">
+                <TabsList className={`w-full grid h-9 ${selectedQuote.status === 'accepted' ? 'grid-cols-5' : 'grid-cols-4'}`}>
                   <TabsTrigger value="lines" className="text-xs">Lignes</TabsTrigger>
                   {selectedQuote.status === 'accepted' && (
                     <TabsTrigger value="amendments" className="text-xs">

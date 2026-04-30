@@ -69,6 +69,11 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET:-concept-files}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Antivirus policy: defaults to 'true' in production, 'false' otherwise.
+      # The dev compose runs with NODE_ENV=production, so we explicitly opt the
+      # demo container into fail-open. NEVER set this to 'false' in production —
+      # see the loud boot warning emitted by api/src/antivirus/antivirus.service.ts.
+      ANTIVIRUS_FAIL_CLOSED: ${ANTIVIRUS_FAIL_CLOSED:-false}
       PORT: 3000
     depends_on:
       postgres:

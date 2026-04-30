@@ -450,13 +450,67 @@ export class QuotesService {
     }
 
     if (options.createPurchases) {
-      // Disabled until `supplierId` and `orderedAt` are propagated by the caller —
-      // `PurchaseOrder` requires both (see schema.prisma). The previous
-      // implementation was type-unsafe and crashed at runtime (missing supplierId,
-      // unknown `description` column). Surfaced here so the code is visible but inert.
-      this.logger.warn(
-        `[Quotes] createPurchases requested for quote ${quote.reference} but is disabled: caller must pass supplierId + orderedAt.`,
-      );
+      // Heuristic: a quote line is a 'material' if its designation matches a few
+      // keywords typical of items the workshop/yard will need to buy. Service /
+      // labour lines stay out. We aggregate all material lines into one draft PO
+      // attached to the new job; the user picks the supplier and edits amounts
+      // before sending it.
+      const materialRe = /(panneau|panneaux|peinture|plots?|mobilier|signal|barri[èe]re|outil|mat[ée]riau|fournitures?|consommables?|m[ée]tal|acier|b[ée]ton|bois|abri|corbeille|borne)/i;
+      const materialLines = quote.lines.filter(l => materialRe.test(l.designation));
+
+      if (materialLines.length > 0) {
+        // Default supplier: the first active supplier of the company. The user
+        // edits this in the PO drawer afterwards. If the company has no supplier
+        // yet, log + skip (no orphan PO with NULL FK).
+        const defaultSupplier = await this.prisma.supplier.findFirst({
+          where: { companyId: quote.companyId },
+          orderBy: { name: 'asc' },
+        });
+        if (!defaultSupplier) {
+          this.logger.warn(
+            `[Quotes] createPurchases skipped for ${quote.reference}: company has no supplier yet.`,
+          );
+        } else {
+          const totalAmount = materialLines.reduce(
+            (s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0,
+          );
+
+          const year = new Date().getFullYear();
+          const created = await this.prisma.$transaction(async (tx) => {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('purchase-seq:' || ${quote.companyId}))`;
+            const result = await tx.$queryRaw<[{ next_val: bigint }]>`
+              SELECT COALESCE(MAX(CAST(SUBSTRING(reference FROM '[0-9]+$') AS INTEGER)), 0) + 1 as next_val
+              FROM "purchase_orders"
+              WHERE "companyId" = ${quote.companyId}
+            `;
+            const nextVal = Number(result[0].next_val);
+            const company = await tx.company.findUnique({ where: { id: quote.companyId } });
+            const ref = `CMD-${company!.code}-${year}-${String(nextVal).padStart(3, '0')}`;
+
+            return tx.purchaseOrder.create({
+              data: {
+                id: createId(),
+                reference: ref,
+                amount: totalAmount,
+                orderedAt: new Date(),
+                supplierId: defaultSupplier.id,
+                jobId: job.id,
+                companyId: quote.companyId,
+                lines: {
+                  create: materialLines.map((l, i) => ({
+                    designation: l.designation,
+                    unit: l.unit,
+                    quantity: Number(l.quantity),
+                    unitPrice: Number(l.unitPrice),
+                    sortOrder: i,
+                  })),
+                },
+              },
+            });
+          });
+          purchases.push(created);
+        }
+      }
     }
 
     return {
