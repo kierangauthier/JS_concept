@@ -38,4 +38,29 @@ export class ReportsController {
     res.setHeader('Content-Disposition', `attachment; filename=rapport-heures-${weekOf}.csv`);
     res.send('\uFEFF' + csv); // BOM for Excel
   }
+
+  @Get('monthly-revenue')
+  getMonthlyRevenue(@Req() req: any) {
+    return this.reportsService.getMonthlyRevenue(req.companyId);
+  }
+
+  @Get('top-clients')
+  getTopClients(@Req() req: any) {
+    return this.reportsService.getTopClients(req.companyId);
+  }
+
+  @Get('pipeline')
+  getPipeline(@Req() req: any) {
+    return this.reportsService.getPipeline(req.companyId);
+  }
+
+  @Get('overdue-invoices')
+  getOverdueInvoices(@Req() req: any) {
+    return this.reportsService.getOverdueInvoices(req.companyId);
+  }
+
+  @Get('team-workload')
+  getTeamWorkload(@Req() req: any) {
+    return this.reportsService.getTeamWorkload(req.companyId);
+  }
 }

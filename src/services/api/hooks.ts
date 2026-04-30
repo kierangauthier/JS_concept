@@ -1502,6 +1502,56 @@ export function useHoursReport(weekOf: string, groupBy: 'user' | 'job') {
   });
 }
 
+export function useMonthlyRevenueReport() {
+  const { isAuthenticated, selectedCompany } = useApp();
+  return useQuery({
+    queryKey: ['report-monthly-revenue', selectedCompany],
+    queryFn: () => reportsApi.getMonthlyRevenue(),
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+}
+
+export function useTopClientsReport() {
+  const { isAuthenticated, selectedCompany } = useApp();
+  return useQuery({
+    queryKey: ['report-top-clients', selectedCompany],
+    queryFn: () => reportsApi.getTopClients(),
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+}
+
+export function usePipelineReport() {
+  const { isAuthenticated, selectedCompany } = useApp();
+  return useQuery({
+    queryKey: ['report-pipeline', selectedCompany],
+    queryFn: () => reportsApi.getPipeline(),
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+}
+
+export function useOverdueInvoicesReport() {
+  const { isAuthenticated, selectedCompany } = useApp();
+  return useQuery({
+    queryKey: ['report-overdue-invoices', selectedCompany],
+    queryFn: () => reportsApi.getOverdueInvoices(),
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+  });
+}
+
+export function useTeamWorkloadReport() {
+  const { isAuthenticated, selectedCompany } = useApp();
+  return useQuery({
+    queryKey: ['report-team-workload', selectedCompany],
+    queryFn: () => reportsApi.getTeamWorkload(),
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+}
+
 // ─── Import ───────────────────────────────────────────────
 export function useImportPreview() {
   return useMutation({
