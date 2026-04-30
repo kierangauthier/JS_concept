@@ -286,10 +286,10 @@ export function useJobMargin(jobId: string | null) {
 }
 
 export function useDashboardMargins() {
-  const { isAuthenticated, currentUser } = useApp();
+  const { isAuthenticated, currentUser, selectedCompany } = useApp();
   const enabled = isAuthenticated && !!currentUser && ['admin', 'conducteur'].includes(currentUser.role);
   return useQuery({
-    queryKey: ['dashboard-margins'],
+    queryKey: ['dashboard-margins', selectedCompany],
     queryFn: () => jobsApi.getDashboardMargins(),
     enabled,
     staleTime: 5 * 60_000,
@@ -345,9 +345,9 @@ export function useDeleteJobPhoto() {
 // ─── Global Search ──────────────────────────────────────────────────────────
 
 export function useSearch(query: string) {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, selectedCompany } = useApp();
   return useQuery({
-    queryKey: ['search', query],
+    queryKey: ['search', query, selectedCompany],
     queryFn: () => searchApi.search(query),
     enabled: isAuthenticated && query.length >= 2,
     staleTime: 10_000,
@@ -1055,9 +1055,9 @@ export function useAttachments(entityType: string, entityId: string | null) {
 // ─── Catalog ───────────────────────────────────────────────────────────────
 
 export function useCatalogCategories() {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, selectedCompany } = useApp();
   return useQuery({
-    queryKey: ['catalog-categories'],
+    queryKey: ['catalog-categories', selectedCompany],
     queryFn: () => catalogApi.listCategories(),
     enabled: isAuthenticated,
     staleTime: 60_000,
@@ -1077,9 +1077,9 @@ export function useCreateCatalogCategory() {
 }
 
 export function useCatalogProducts(search?: string, categoryId?: string) {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, selectedCompany } = useApp();
   return useQuery({
-    queryKey: ['catalog-products', search, categoryId],
+    queryKey: ['catalog-products', selectedCompany, search, categoryId],
     queryFn: () => catalogApi.listProducts({ search, categoryId }),
     enabled: isAuthenticated,
     staleTime: 30_000,
@@ -1233,9 +1233,9 @@ export function useAbsences(status?: string) {
 }
 
 export function useAbsenceTypes() {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, selectedCompany } = useApp();
   return useQuery({
-    queryKey: ['absence-types'],
+    queryKey: ['absence-types', selectedCompany],
     queryFn: () => absencesApi.getTypes(),
     enabled: isAuthenticated,
     staleTime: 60_000,

@@ -35,7 +35,15 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [selectedCompany, setSelectedCompany] = useState<Company>('GROUP');
+  const [selectedCompany, setSelectedCompany] = useState<Company>(() => {
+    const saved = typeof localStorage !== 'undefined'
+      ? localStorage.getItem('selectedCompany')
+      : null;
+    const initial = (saved as Company) ?? 'GROUP';
+    // Sync authStore synchronously so the very first fetch reads the right scope.
+    authStore.setCompanyScope(initial);
+    return initial;
+  });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -68,7 +76,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(true);
         // If user's company doesn't allow GROUP scope, lock to their company
         if (!['admin', 'conducteur'].includes(user.role)) {
-          setSelectedCompany(user.company as Company);
+          const scope = user.company as Company;
+          authStore.setCompanyScope(scope);
+          localStorage.setItem('selectedCompany', scope);
+          setSelectedCompany(scope);
         }
       } catch {
         // 401 = no valid session, user must log in
@@ -87,11 +98,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(true);
     authStore.resetSessionExpiredFlag();
     // Set initial company scope based on role
-    if (['admin', 'conducteur'].includes(data.user.role)) {
-      setSelectedCompany('GROUP');
-    } else {
-      setSelectedCompany(data.user.company as Company);
-    }
+    const initialScope: Company = ['admin', 'conducteur'].includes(data.user.role)
+      ? 'GROUP'
+      : (data.user.company as Company);
+    // Update authStore + localStorage SYNCHRONOUSLY before setSelectedCompany so
+    // the first fetch after login reads the right scope (avoid GROUP/JS race).
+    authStore.setCompanyScope(initialScope);
+    localStorage.setItem('selectedCompany', initialScope);
+    setSelectedCompany(initialScope);
     queryClient.clear(); // fresh queries after login
   }, []);
 
@@ -99,6 +113,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await authApi.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
+    localStorage.removeItem('selectedCompany');
+    authStore.setCompanyScope('GROUP');
     setSelectedCompany('GROUP');
     queryClient.clear();
   }, []);
@@ -112,6 +128,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (company !== 'GROUP' && company !== currentUser.company && !['admin', 'conducteur'].includes(currentUser.role)) {
       return;
     }
+    // CRITICAL: update authStore SYNCHRONOUSLY before triggering the state change.
+    // http.ts reads `_companyScope` synchronously when it builds each request, but
+    // the previous useEffect-based sync ran after the re-render — so the first
+    // fetches under the new queryKey (e.g. ['invoices', 'JS']) went out with
+    // X-Company-Id still set to the previous scope, returning data for the wrong
+    // tenant and caching it under the new key.
+    authStore.setCompanyScope(company);
+    localStorage.setItem('selectedCompany', company);
     setSelectedCompany(company);
   }, [currentUser]);
 
