@@ -13,6 +13,7 @@ import {
   useUsers,
 } from '@/services/api/hooks';
 import { Button } from '@/components/ui/button';
+import { toISODateLocal } from '@/lib/format';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -75,9 +76,7 @@ function getWeekDays(weekOffset: number): Date[] {
   });
 }
 
-function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+const toDateStr = toISODateLocal;
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();

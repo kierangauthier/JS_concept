@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { useJobs, useTimeEntries, useCreateTimeEntry, useJobPhotos, usePresignJobPhoto, useCreateJobPhoto, useDeleteJobPhoto } from '@/services/api/hooks';
 import { jobsApi } from '@/services/api/jobs.api';
-import { plural } from '@/lib/format';
+import { plural, toISODateLocal } from '@/lib/format';
 
 export default function Terrain() {
   const { data: apiJobs, isLoading: loadingJobs } = useJobs();
@@ -37,7 +37,7 @@ export default function Terrain() {
   // Time entry form state
   const [formOpen, setFormOpen] = useState(false);
   const [formJobId, setFormJobId] = useState('');
-  const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
+  const [formDate, setFormDate] = useState(toISODateLocal(new Date()));
   const [formHours, setFormHours] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
@@ -101,7 +101,7 @@ export default function Terrain() {
 
   function openForm() {
     setFormJobId(jobs.length > 0 ? jobs[0].id : '');
-    setFormDate(new Date().toISOString().slice(0, 10));
+    setFormDate(toISODateLocal(new Date()));
     setFormHours('');
     setFormDescription('');
     setFormOpen(true);

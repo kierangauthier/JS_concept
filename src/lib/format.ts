@@ -90,6 +90,24 @@ export const fmt = {
 };
 
 /**
+ * Format a Date as YYYY-MM-DD using the local timezone.
+ *
+ * Use this whenever a date string is sent to the API to represent a calendar
+ * day (e.g. weekStart, formIssuedAt, dueDate). `Date.toISOString().slice(0,10)`
+ * looks similar but converts to UTC first — in Europe/Paris, a Monday at
+ * 00:00 local becomes the previous Sunday in UTC, breaking equality checks
+ * with rows the backend stored as the Monday of that week.
+ *
+ * @example toISODateLocal(new Date(2026, 1, 23)) → "2026-02-23"
+ */
+export function toISODateLocal(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
  * Pluralise a French word based on count. Returns "N mot(s)" form.
  * If `plural` is omitted, appends "s" when count > 1.
  *

@@ -6,13 +6,14 @@ import { useOfflineQuery } from '@/services/offline/hooks';
 import { teamPlanningApi } from '@/services/api/team-planning.api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/terrain/PullToRefresh';
+import { toISODateLocal } from '@/lib/format';
 
 function getWeekStart(date: Date): string {
   const d = new Date(date);
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
-  return d.toISOString().slice(0, 10);
+  return toISODateLocal(d);
 }
 
 export default function TerrainToday() {
@@ -26,7 +27,7 @@ export default function TerrainToday() {
 
   const handleRefresh = () => queryClient.invalidateQueries({ queryKey: ['my-planning'] });
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = toISODateLocal(new Date());
 
   const todaySlots = useMemo(() => {
     if (!data?.slots) return [];

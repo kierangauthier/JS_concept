@@ -16,13 +16,14 @@ import { useOfflineMutation } from '@/services/offline/hooks';
 import { offlineDb } from '@/services/offline/db';
 import { compressPhoto, checkPhotoLimit } from '@/services/offline/imageCompressor';
 import { timeEntriesApi, CreateTimeEntryPayload } from '@/services/api/time-entries.api';
+import { toISODateLocal } from '@/lib/format';
 
 function getWeekStart(date: Date): string {
   const d = new Date(date);
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
-  return d.toISOString().slice(0, 10);
+  return toISODateLocal(d);
 }
 
 export default function InterventionDetail() {
