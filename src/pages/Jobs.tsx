@@ -375,7 +375,7 @@ export default function Jobs() {
                     <div><div className="text-xs text-muted-foreground uppercase">Adresse</div><div className="font-medium">{selectedJob.address}</div></div>
                     <div><div className="text-xs text-muted-foreground uppercase">Début</div><div className="font-medium">{new Date(selectedJob.startDate).toLocaleDateString('fr-FR')}</div></div>
                     <div><div className="text-xs text-muted-foreground uppercase">Fin</div><div className="font-medium">{selectedJob.endDate ? new Date(selectedJob.endDate).toLocaleDateString('fr-FR') : '–'}</div></div>
-                    <div><div className="text-xs text-muted-foreground uppercase">Devis lié</div><div className="font-medium font-mono">{selectedJob.quoteId || '–'}</div></div>
+                    <div><div className="text-xs text-muted-foreground uppercase">Devis lié</div><div className="font-medium font-mono">{selectedJob.quoteId ? ((apiQuotes ?? []).find(q => q.id === selectedJob.quoteId)?.reference ?? selectedJob.quoteId) : '–'}</div></div>
                     <div><div className="text-xs text-muted-foreground uppercase">Entité</div><div className="font-medium">{selectedJob.company === 'ASP' ? 'ASP Signalisation' : 'JS Concept'}</div></div>
                   </div>
                   <div className="border-t pt-4">

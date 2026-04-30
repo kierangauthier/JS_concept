@@ -38,7 +38,7 @@ export default function TerrainPhotos() {
           <h1 className="text-xl font-bold">Photos</h1>
           <p className="text-xs text-muted-foreground">{plural(activeJobs.length, 'chantier actif', 'chantiers actifs')}</p>
         </div>
-        <Link to="/terrain">
+        <Link to="/terrain?capture=photo">
           <Button className="gap-1.5 h-12 bg-primary hover:bg-primary/90 text-primary-foreground">
             <Camera className="h-3.5 w-3.5" /> Prendre
           </Button>

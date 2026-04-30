@@ -117,8 +117,8 @@ export default function Workshop() {
       return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${b.className}`}>{b.label}</span>;
     }},
     { key: 'priority', header: 'Priorité', render: (i) => <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ${priorityBadge[i.priority]}`}>{i.priority}</span> },
-    { key: 'due', header: 'Échéance', sortable: true, accessor: (i) => i.dueDate, render: (i) => <span className="text-xs text-muted-foreground">{new Date(i.dueDate).toLocaleDateString('fr-FR')}</span> },
-    { key: 'assigned', header: 'Assigné', render: (i) => <span className="text-xs text-muted-foreground">{i.assignedTo}</span> },
+    { key: 'due', header: 'Échéance', sortable: true, accessor: (i) => i.dueDate, render: (i) => <span className="text-xs text-muted-foreground">{i.dueDate ? new Date(i.dueDate).toLocaleDateString('fr-FR') : '—'}</span> },
+    { key: 'assigned', header: 'Assigné', render: (i) => <span className="text-xs text-muted-foreground">{i.assignedTo ?? '—'}</span> },
   ];
 
   const { data: selectedActivities = [] } = useActivityLogs('workshop', selected?.id ?? null);
@@ -183,8 +183,8 @@ export default function Workshop() {
                     </div>
                     <h4 className="text-xs font-medium leading-tight line-clamp-2 mb-1">{item.title}</h4>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground">{item.assignedTo.split(' ')[0]}</span>
-                      <span className="text-[10px] text-muted-foreground">{new Date(item.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</span>
+                      <span className="text-[10px] text-muted-foreground">{item.assignedTo?.split(' ')[0] ?? '—'}</span>
+                      <span className="text-[10px] text-muted-foreground">{item.dueDate ? new Date(item.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—'}</span>
                     </div>
                   </button>
                 ))}
@@ -197,7 +197,7 @@ export default function Workshop() {
           data={allItems}
           columns={columns}
           searchPlaceholder="Rechercher…"
-          searchAccessor={(i) => `${i.reference} ${i.title} ${i.jobRef} ${i.assignedTo}`}
+          searchAccessor={(i) => `${i.reference} ${i.title} ${i.jobRef} ${i.assignedTo ?? ''}`}
           onRowClick={(i) => setSelected(i)}
         />
       )}
@@ -255,8 +255,8 @@ export default function Workshop() {
 
               <div className="grid grid-cols-2 gap-3 text-sm mb-4">
                 <div><div className="text-xs text-muted-foreground uppercase">Chantier</div><div className="font-medium font-mono">{selected.jobRef}</div></div>
-                <div><div className="text-xs text-muted-foreground uppercase">Assigné</div><div className="font-medium">{selected.assignedTo}</div></div>
-                <div><div className="text-xs text-muted-foreground uppercase">Échéance</div><div className="font-medium">{new Date(selected.dueDate).toLocaleDateString('fr-FR')}</div></div>
+                <div><div className="text-xs text-muted-foreground uppercase">Assigné</div><div className="font-medium">{selected.assignedTo ?? '—'}</div></div>
+                <div><div className="text-xs text-muted-foreground uppercase">Échéance</div><div className="font-medium">{selected.dueDate ? new Date(selected.dueDate).toLocaleDateString('fr-FR') : '—'}</div></div>
                 <div><div className="text-xs text-muted-foreground uppercase">Priorité</div><div className="font-medium capitalize">{selected.priority}</div></div>
               </div>
 
