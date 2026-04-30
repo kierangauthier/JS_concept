@@ -279,17 +279,26 @@ export class InvoicesService {
     const paymentTermsText =
       c.paymentTerms ?? 'Paiement à 30 jours fin de mois';
 
+    const formatDate = (d: Date) => d.toLocaleDateString('fr-FR');
+    // Manual fr-FR formatter: toLocaleString emits a thin non-breaking space
+    // (U+202F) as the thousands separator that Helvetica/Roboto can't render
+    // (shows up as '/'). We rebuild the format with an ASCII space.
+    const fmtPrice = (n: number): string => {
+      const fixed = n.toFixed(2);
+      const [intPart, decPart] = fixed.split('.');
+      const withSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+      return `${withSpaces},${decPart}`;
+    };
+
     const legalMentions: string[] = [];
     if (c.legalForm && c.shareCapital != null)
-      legalMentions.push(`${c.legalForm} au capital de ${Number(c.shareCapital).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`);
+      legalMentions.push(`${c.legalForm} au capital de ${fmtPrice(Number(c.shareCapital))} €`);
     else if (c.legalForm) legalMentions.push(String(c.legalForm));
     if (c.siret) legalMentions.push(`SIRET ${c.siret}`);
     else if (c.siren) legalMentions.push(`SIREN ${c.siren}`);
     if (c.rcsCity) legalMentions.push(`RCS ${c.rcsCity}`);
     if (c.vatNumber) legalMentions.push(`TVA ${c.vatNumber}`);
     const legalFooter = legalMentions.join(' — ');
-
-    const formatDate = (d: Date) => d.toLocaleDateString('fr-FR');
 
     const fonts = {
       Roboto: {
@@ -359,7 +368,7 @@ export class InvoicesService {
               ],
               [
                 'Prestation de services',
-                { text: `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} \u20AC`, alignment: 'right' },
+                { text: `${fmtPrice(amount)} \u20AC`, alignment: 'right' },
               ],
             ],
           },
@@ -376,11 +385,11 @@ export class InvoicesService {
               table: {
                 widths: ['*', 100],
                 body: [
-                  ['Total HT', { text: `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} \u20AC`, alignment: 'right' }],
-                  ['TVA 20%', { text: `${tva.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} \u20AC`, alignment: 'right' }],
+                  ['Total HT', { text: `${fmtPrice(amount)} \u20AC`, alignment: 'right' }],
+                  ['TVA 20%', { text: `${fmtPrice(tva)} \u20AC`, alignment: 'right' }],
                   [
                     { text: 'Total TTC', bold: true, fontSize: 12 },
-                    { text: `${ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} \u20AC`, alignment: 'right', bold: true, fontSize: 12 },
+                    { text: `${fmtPrice(ttc)} \u20AC`, alignment: 'right', bold: true, fontSize: 12 },
                   ],
                 ],
               },
