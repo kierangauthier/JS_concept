@@ -17,6 +17,7 @@ import Purchases from "./pages/Purchases";
 import Workshop from "./pages/Workshop";
 import Invoicing from "./pages/Invoicing";
 import AdminPage from "./pages/AdminPage";
+import AdminLegal from "./pages/AdminLegal";
 import ImportData from "./pages/ImportData";
 import Catalog from "./pages/Catalog";
 import TimeEntries from "./pages/TimeEntries";
@@ -120,6 +121,7 @@ const App = () => (
             <Route path="/absences" element={<Absences />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/legal" element={<AdminLegal />} />
             <Route path="/admin/import" element={<ImportData />} />
             <Route path="/account" element={<Account />} />
           </Route>

@@ -104,9 +104,11 @@ model Company {
 
   // Legal identifiers (required for French invoices — see V2 audit).
   legalName            String?
+  tagline              String?  // e.g. "Signalisation & Aménagement", printed under company name on PDFs
   legalForm            String?
   siren                String?
   siret                String?
+  apeCode              String?  // e.g. "4399C"
   vatNumber            String?
   rcsCity              String?
   shareCapital         Decimal? @db.Decimal(14, 2)
@@ -115,12 +117,18 @@ model Company {
   postalCode           String?
   city                 String?
   countryCode          String?  @default("FR")
+  phone                String?
+  email                String?
+  website              String?
   iban                 String?
   bic                  String?
+  bankName             String?
   paymentTerms         String?  // free-text clause printed on invoices
   latePaymentRate      String?  // e.g. "3 × taux d'intérêt légal"
   lateFeeFlat          Decimal? @db.Decimal(10, 2) @default(40)
+  discountRate         Decimal? @db.Decimal(5, 2)  @default(0)  // escompte for early payment, in %
   legalRepresentative  String?
+  facturxProfile       String?  @default("BASIC")  // MINIMUM / BASIC / EN16931 / EXTENDED
 
   users              User[]
   clients            Client[]

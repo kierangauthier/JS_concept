@@ -234,6 +234,7 @@ export const navItems: NavItem[] = [
 
   // ─── Administration ──────────────────────────────────────────────────────
   { title: 'Import',             path: '/admin/import',   icon: 'Upload',          roles: ['admin'],                                             group: 'Administration' },
+  { title: 'Infos légales',      path: '/admin/legal',    icon: 'ScrollText',      roles: ['admin'] },
   { title: 'Paramètres',         path: '/admin',          icon: 'Settings',        roles: ['admin'] },
 
   // ─── Assistant IA (bas de sidebar) ───────────────────────────────────────

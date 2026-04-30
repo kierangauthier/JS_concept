@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientsApi, CreateClientPayload, UpdateClientPayload } from './clients.api';
 import { suppliersApi, CreateSupplierPayload, UpdateSupplierPayload } from './suppliers.api';
+import { legalApi, UpdateLegalPayload } from './legal.api';
 import { quotesApi, CreateQuotePayload, UpdateQuotePayload } from './quotes.api';
 import { jobsApi, CreateJobPayload, UpdateJobPayload, JobPhoto } from './jobs.api';
 import { searchApi, SearchResults } from './search.api';
@@ -90,6 +91,34 @@ export function useArchiveClient() {
       toast.success('Client archivé');
     },
     onError: (err: any) => toast.error(err.message ?? 'Impossible d\u2019archiver le client'),
+  });
+}
+
+// ─── Legal (admin) ──────────────────────────────────────────────────────────
+
+export function useCompanyLegal() {
+  const { isAuthenticated, currentUser, selectedCompany } = useApp();
+  // GROUP scope returns 403 by design; only fetch when a specific entity is
+  // selected and the user is admin.
+  const enabled = isAuthenticated && currentUser?.role === 'admin' && selectedCompany !== 'GROUP';
+  return useQuery({
+    queryKey: ['legal', selectedCompany],
+    queryFn: () => legalApi.get(),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateCompanyLegal() {
+  const queryClient = useQueryClient();
+  const { selectedCompany } = useApp();
+  return useMutation({
+    mutationFn: (data: UpdateLegalPayload) => legalApi.update(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['legal', selectedCompany] });
+      toast.success('Informations légales mises à jour');
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Erreur mise à jour informations légales'),
   });
 }
 
