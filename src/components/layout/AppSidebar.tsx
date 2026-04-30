@@ -3,7 +3,7 @@ import { useApp, getNavForRole, NavItem } from '@/contexts/AppContext';
 import {
   LayoutDashboard, Users, FileText, HardHat, CalendarDays, MapPin,
   ShoppingCart, Wrench, Receipt, Settings, ChevronLeft, ChevronRight,
-  UserCog, Package, ClipboardCheck, CalendarOff, BarChart3, Upload, Sparkles, Clock,
+  UserCog, Package, ClipboardCheck, CalendarOff, BarChart3, Upload, Sparkles, Clock, Truck,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -13,7 +13,7 @@ const SIDEBAR_COLLAPSED_KEY = 'cm_sidebar_collapsed';
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Users, FileText, HardHat, CalendarDays, MapPin,
-  ShoppingCart, Wrench, Receipt, Settings, UserCog, Package,
+  ShoppingCart, Wrench, Receipt, Settings, UserCog, Package, Truck,
   ClipboardCheck, CalendarOff, BarChart3, Upload, Sparkles, Clock,
 };
 

@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { TerrainLayout } from "@/components/layout/TerrainLayout";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
+import Suppliers from "./pages/Suppliers";
 import Quotes from "./pages/Quotes";
 import Jobs from "./pages/Jobs";
 import Planning from "./pages/Planning";
@@ -104,8 +105,10 @@ const App = () => (
           <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/clients" element={<Clients />} />
+            <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/jobs" element={<Jobs />} />
+            <Route path="/jobs/:id" element={<Jobs />} />
             <Route path="/planning" element={<Planning />} />
             <Route path="/hr" element={<HR />} />
             <Route path="/purchases" element={<Purchases />} />

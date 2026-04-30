@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { useFormGuard } from '@/hooks/use-dirty-form';
 import { useUrlState } from '@/hooks/use-url-state';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
@@ -40,18 +40,25 @@ export default function Jobs() {
   const jobs = useFilterByCompany(allJobs);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { id: routeJobId } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const openJobId = searchParams.get('openJob');
-    if (openJobId && jobs.length > 0) {
-      const job = jobs.find(j => j.id === openJobId);
+    const targetId = routeJobId ?? searchParams.get('openJob') ?? null;
+    if (targetId && jobs.length > 0) {
+      const job = jobs.find(j => j.id === targetId);
       if (job) {
         setSelectedJob(job);
-        searchParams.delete('openJob');
-        setSearchParams(searchParams, { replace: true });
+        // /jobs/:id → redirect to /jobs so closing the drawer lands on the list.
+        if (routeJobId) {
+          navigate('/jobs', { replace: true });
+        } else if (searchParams.has('openJob')) {
+          searchParams.delete('openJob');
+          setSearchParams(searchParams, { replace: true });
+        }
       }
     }
-  }, [searchParams, jobs, setSearchParams]);
+  }, [routeJobId, searchParams, jobs, setSearchParams, navigate]);
 
   const [viewModeRaw, setViewModeRaw] = useUrlState('view', 'table');
   const viewMode = (viewModeRaw === 'timeline' ? 'timeline' : 'table') as 'table' | 'timeline';
