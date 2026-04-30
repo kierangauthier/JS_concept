@@ -48,7 +48,7 @@ export default function Catalog() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
-  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
   const [formRef, setFormRef] = useState('');
   const [formDesignation, setFormDesignation] = useState('');
   const [formUnit, setFormUnit] = useState('m²');

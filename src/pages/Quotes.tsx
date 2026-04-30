@@ -77,7 +77,7 @@ export default function Quotes() {
   const [formValidUntil, setFormValidUntil] = useState('');
   const [formVatRate, setFormVatRate] = useState<number>(20);
   const [formLines, setFormLines] = useState<QuoteLineForm[]>([defaultLine()]);
-  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
   // Snapshot for dirty detection — null while the form is closed.
   const [formBaseline, setFormBaseline] = useState<unknown>(null);
 

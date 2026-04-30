@@ -56,7 +56,7 @@ export default function Purchases() {
   const [formJobId, setFormJobId] = useState('');
   const [formAmount, setFormAmount] = useState('');
   const [formOrderedAt, setFormOrderedAt] = useState(toISODateLocal(new Date()));
-  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
 
   function openCreateForm() {
     setFormSupplierId('');

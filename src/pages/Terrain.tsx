@@ -33,7 +33,7 @@ export default function Terrain() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [expandedPhotoJobId, setExpandedPhotoJobId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photoCompany, setPhotoCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [photoCompany, setPhotoCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
 
   // Time entry form state
   const [formOpen, setFormOpen] = useState(false);
@@ -41,7 +41,7 @@ export default function Terrain() {
   const [formDate, setFormDate] = useState(toISODateLocal(new Date()));
   const [formHours, setFormHours] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
 
   function openPhotoForm() {
     setPhotoJobId(jobs.length > 0 ? jobs[0].id : '');

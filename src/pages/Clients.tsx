@@ -45,7 +45,7 @@ export default function Clients() {
   // Form state — validation handled by zod via react-hook-form.
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
   const [formBaseline, setFormBaseline] = useState<ClientFormValues | null>(null);
 
   const EMPTY_VALUES: ClientFormValues = {

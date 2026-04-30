@@ -101,7 +101,7 @@ export default function Planning() {
   const isToday = (d: Date) => isSameDay(d, new Date());
   const isAdmin = currentUser?.role === 'admin';
 
-  const [assignCompany, setAssignCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [assignCompany, setAssignCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
 
   // Keyboard shortcuts for week nav and view switching. Ignored while typing.
   useHotkeys([
@@ -811,7 +811,7 @@ function TeamManagementDrawer({ open, onClose }: { open: boolean; onClose: () =>
   const [newTeamName, setNewTeamName] = useState('');
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [assignCompany, setAssignCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [assignCompany, setAssignCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
 
   async function handleCreateTeam() {
     if (!newTeamName.trim()) return;
