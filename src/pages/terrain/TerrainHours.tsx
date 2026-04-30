@@ -119,7 +119,7 @@ export default function TerrainHours() {
           <div className="space-y-1.5">
             <Label htmlFor="te-job">Chantier *</Label>
             <Select value={formJobId} onValueChange={setFormJobId}>
-              <SelectTrigger id="te-job">
+              <SelectTrigger id="te-job" className="h-11">
                 <SelectValue placeholder="Sélectionner un chantier" />
               </SelectTrigger>
               <SelectContent>
@@ -131,16 +131,16 @@ export default function TerrainHours() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="te-date">Date</Label>
-            <Input id="te-date" type="date" value={formDate} onChange={e => setFormDate(e.target.value)} />
+            <Input id="te-date" type="date" className="h-11" value={formDate} onChange={e => setFormDate(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="te-start">Début</Label>
-              <Input id="te-start" type="time" value={formStart} onChange={e => setFormStart(e.target.value)} />
+              <Input id="te-start" type="time" className="h-11" value={formStart} onChange={e => setFormStart(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="te-end">Fin</Label>
-              <Input id="te-end" type="time" value={formEnd} onChange={e => setFormEnd(e.target.value)} />
+              <Input id="te-end" type="time" className="h-11" value={formEnd} onChange={e => setFormEnd(e.target.value)} />
             </div>
           </div>
           {calculatedHours > 0 && (
@@ -151,7 +151,7 @@ export default function TerrainHours() {
           )}
           <div className="space-y-1.5">
             <Label htmlFor="te-desc">Description (optionnel)</Label>
-            <Input id="te-desc" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Travaux réalisés…" />
+            <Input id="te-desc" className="h-11" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Travaux réalisés…" />
           </div>
           <div className="flex gap-2">
             <Button type="submit" className="flex-1 h-12" disabled={createTimeEntry.isPending}>
