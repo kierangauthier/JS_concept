@@ -17,9 +17,37 @@ export interface HoursReport {
   totals: { planned: number; actual: number };
 }
 
+export interface MonthlyRevenueRow { month: string; revenue: number; invoiceCount: number; }
+export interface TopClientRow { rank: number; clientId: string; clientName: string; revenue: number; jobCount: number; }
+export interface PipelineStage { status: string; label: string; total: number; count: number; }
+export interface OverdueInvoiceRow {
+  id: string; reference: string; clientName: string;
+  amount: number; dueDate: string; daysOverdue: number;
+}
+export interface TeamWorkloadCell { teamId: string; weekStart: string; hours: number; }
+export interface TeamWorkloadResponse {
+  teams: Array<{ id: string; name: string }>;
+  cells: TeamWorkloadCell[];
+}
+
 export const reportsApi = {
   getHoursReport: (weekOf: string, groupBy: 'user' | 'job'): Promise<HoursReport> =>
     http.get<HoursReport>(`/reports/hours?weekOf=${encodeURIComponent(weekOf)}&groupBy=${groupBy}`),
+
+  getMonthlyRevenue: (): Promise<{ months: MonthlyRevenueRow[] }> =>
+    http.get('/reports/monthly-revenue'),
+
+  getTopClients: (): Promise<{ clients: TopClientRow[] }> =>
+    http.get('/reports/top-clients'),
+
+  getPipeline: (): Promise<{ stages: PipelineStage[] }> =>
+    http.get('/reports/pipeline'),
+
+  getOverdueInvoices: (): Promise<{ invoices: OverdueInvoiceRow[] }> =>
+    http.get('/reports/overdue-invoices'),
+
+  getTeamWorkload: (): Promise<TeamWorkloadResponse> =>
+    http.get('/reports/team-workload'),
 
   exportHoursCsv: async (weekOf: string, groupBy: 'user' | 'job'): Promise<void> => {
     const tokens = JSON.parse(localStorage.getItem('cm_tokens') ?? '{}');
