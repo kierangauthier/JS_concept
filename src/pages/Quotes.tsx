@@ -832,7 +832,7 @@ export default function Quotes() {
               </div>
 
               <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-xs">
+                <table className="w-full text-xs table-fixed">
                   <thead>
                     <tr className="bg-muted/50 text-muted-foreground">
                       <th className="text-left px-2 py-1.5">Désignation</th>

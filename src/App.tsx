@@ -104,6 +104,14 @@ const App = () => (
             <Route path="/cgu" element={<Cgu />} />
             <Route path="/cgv" element={<Cgv />} />
             <Route path="/confidentialite" element={<Confidentialite />} />
+            {/* /legal/* aliases — buyers expect privacy/terms pages under a
+                conventional /legal namespace. Pre-existing root paths kept
+                so we never break an external link. */}
+            <Route path="/legal/mentions-legales" element={<MentionsLegales />} />
+            <Route path="/legal/cgu" element={<Cgu />} />
+            <Route path="/legal/cgv" element={<Cgv />} />
+            <Route path="/legal/confidentialite" element={<Confidentialite />} />
+            <Route path="/legal/privacy" element={<Confidentialite />} />
           </Route>
 
           {/* Protected desktop layout — role gates mirror the @Roles() on the
