@@ -3,15 +3,10 @@ export default function Confidentialite() {
     <article>
       <h1>Politique de confidentialité (RGPD)</h1>
 
-      <p>
-        <strong>⚠️ Gabarit non finalisé.</strong> À faire relire par un DPO avant mise en
-        production commerciale.
-      </p>
-
       <h2>1. Responsable de traitement</h2>
       <p>
-        [RAISON SOCIALE], éditeur de ConceptManager.<br />
-        Contact DPO : <a href="mailto:dpo@example.fr">dpo@example.fr</a> (à configurer).
+        <strong>Acreed IA Solutions SAS</strong>, éditeur de ConceptManager.<br />
+        Contact DPO : <a href="mailto:dpo@acreediasolutions.com">dpo@acreediasolutions.com</a>.
       </p>
 
       <h2>2. Données collectées</h2>
@@ -44,8 +39,9 @@ export default function Confidentialite() {
 
       <h2>4. Sous-traitants</h2>
       <ul>
-        <li><strong>Hébergeur applicatif :</strong> [Nom, localisation UE].</li>
-        <li><strong>Envoi d'emails transactionnels :</strong> [Nom, localisation].</li>
+        <li><strong>Hébergeur applicatif :</strong> Microsoft Azure — région France Centre (Paris).</li>
+        <li><strong>Stockage objet (photos, pièces jointes) :</strong> MinIO auto-hébergé sur la même infrastructure.</li>
+        <li><strong>Base de données :</strong> PostgreSQL — région France Centre (Paris).</li>
         <li>
           <strong>Intelligence artificielle (optionnelle) :</strong> Anthropic PBC (États-Unis).
           Transfert hors UE encadré par les Clauses Contractuelles Types de la Commission

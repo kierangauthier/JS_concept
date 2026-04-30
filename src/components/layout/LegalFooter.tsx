@@ -12,16 +12,16 @@ export function LegalFooter() {
       className="border-t border-border px-4 lg:px-6 py-3 text-xs text-muted-foreground flex flex-wrap items-center gap-4"
     >
       <span>© {new Date().getFullYear()} ConceptManager</span>
-      <Link to="/mentions-legales" className="hover:text-foreground">
+      <Link to="/legal/mentions-legales" className="hover:text-foreground">
         Mentions légales
       </Link>
-      <Link to="/cgu" className="hover:text-foreground">
+      <Link to="/legal/cgu" className="hover:text-foreground">
         CGU
       </Link>
-      <Link to="/cgv" className="hover:text-foreground">
+      <Link to="/legal/cgv" className="hover:text-foreground">
         CGV
       </Link>
-      <Link to="/confidentialite" className="hover:text-foreground">
+      <Link to="/legal/confidentialite" className="hover:text-foreground">
         Confidentialité
       </Link>
     </footer>

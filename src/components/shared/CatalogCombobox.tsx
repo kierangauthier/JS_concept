@@ -50,9 +50,14 @@ export function CatalogCombobox({ value, onChange, onPickProduct, placeholder, c
   );
 
   return (
-    <div className={cn('flex items-center gap-1', className)}>
+    // min-w-0 + flex-1 on Input prevent the wrapper from claiming its content's
+    // natural width inside a table cell — the chevron click was widening the
+    // Désignation column (and the Sheet drawer with it) when long product
+    // designations were already in `value`. The Popover itself renders in a
+    // Radix Portal so it never affects parent layout directly.
+    <div className={cn('flex items-center gap-1 min-w-0', className)}>
       <Input
-        className="h-7 text-xs"
+        className="h-7 text-xs flex-1 min-w-0"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? 'Désignation (ou choix catalogue →)'}
@@ -69,7 +74,7 @@ export function CatalogCombobox({ value, onChange, onPickProduct, placeholder, c
             <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[420px] p-0" align="end">
+        <PopoverContent className="w-[min(420px,calc(100vw-2rem))] p-0" align="end" collisionPadding={16}>
           <Command>
             <CommandInput placeholder="Rechercher dans le catalogue…" />
             <CommandList>

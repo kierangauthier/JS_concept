@@ -3,29 +3,21 @@ export default function MentionsLegales() {
     <article>
       <h1>Mentions légales</h1>
 
-      <p>
-        <strong>⚠️ Document à compléter avant toute mise en production commerciale.</strong>
-        Ce contenu est un gabarit indicatif ; il doit être revu et finalisé avec un conseil juridique.
-      </p>
-
       <h2>Éditeur du service</h2>
       <p>
-        <strong>Raison sociale :</strong> [RAISON SOCIALE]<br />
-        <strong>Forme juridique :</strong> [SAS / SARL / …]<br />
-        <strong>Capital social :</strong> [MONTANT] €<br />
-        <strong>Siège social :</strong> [ADRESSE COMPLÈTE]<br />
-        <strong>SIREN :</strong> [000 000 000] — <strong>SIRET :</strong> [000 000 000 00000]<br />
-        <strong>RCS :</strong> [VILLE]<br />
-        <strong>N° TVA intracommunautaire :</strong> FR[XX XXX XXX XXX]<br />
-        <strong>Directeur de la publication :</strong> [NOM]<br />
-        <strong>Contact :</strong> [email@domaine.fr]
+        <strong>Raison sociale :</strong> Acreed IA Solutions<br />
+        <strong>Forme juridique :</strong> SAS<br />
+        <strong>Siège social :</strong> Lyon, France<br />
+        <strong>RCS :</strong> Lyon — immatriculation en cours<br />
+        <strong>Contact :</strong> <a href="mailto:contact@acreediasolutions.com">contact@acreediasolutions.com</a><br />
+        <strong>Directeur de la publication :</strong> Kieran Gauthier
       </p>
 
       <h2>Hébergeur</h2>
       <p>
-        <strong>Hébergeur applicatif :</strong> [Nom — adresse — contact].<br />
-        <strong>Stockage de fichiers :</strong> [MinIO auto-hébergé / S3 — adresse].<br />
-        <strong>Base de données :</strong> [PostgreSQL — localisation].
+        <strong>Hébergeur applicatif :</strong> Microsoft Azure — région France Centre (Paris).<br />
+        <strong>Stockage objet :</strong> MinIO auto-hébergé sur la même infrastructure.<br />
+        <strong>Base de données :</strong> PostgreSQL — région France Centre (Paris).
       </p>
 
       <h2>Propriété intellectuelle</h2>
@@ -38,7 +30,7 @@ export default function MentionsLegales() {
 
       <h2>Données personnelles et cookies</h2>
       <p>
-        Voir la <a href="/confidentialite">politique de confidentialité</a>.
+        Voir la <a href="/legal/confidentialite">politique de confidentialité</a>.
       </p>
 
       <h2>Logiciels libres tiers</h2>

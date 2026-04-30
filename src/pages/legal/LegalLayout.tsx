@@ -15,10 +15,10 @@ export default function LegalLayout() {
             ConceptManager
           </Link>
           <nav className="flex gap-4 text-xs text-muted-foreground">
-            <Link to="/mentions-legales" className="hover:text-foreground">Mentions légales</Link>
-            <Link to="/cgu" className="hover:text-foreground">CGU</Link>
-            <Link to="/cgv" className="hover:text-foreground">CGV</Link>
-            <Link to="/confidentialite" className="hover:text-foreground">Confidentialité</Link>
+            <Link to="/legal/mentions-legales" className="hover:text-foreground">Mentions légales</Link>
+            <Link to="/legal/cgu" className="hover:text-foreground">CGU</Link>
+            <Link to="/legal/cgv" className="hover:text-foreground">CGV</Link>
+            <Link to="/legal/confidentialite" className="hover:text-foreground">Confidentialité</Link>
           </nav>
         </div>
       </header>

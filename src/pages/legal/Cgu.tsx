@@ -3,11 +3,6 @@ export default function Cgu() {
     <article>
       <h1>Conditions Générales d'Utilisation (CGU)</h1>
 
-      <p>
-        <strong>⚠️ Gabarit non finalisé.</strong> À faire relire par un conseil juridique avant
-        mise en production commerciale.
-      </p>
-
       <h2>1. Objet</h2>
       <p>
         Les présentes conditions définissent les règles d'utilisation du service

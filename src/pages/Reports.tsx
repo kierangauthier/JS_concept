@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import {
   useHoursReport,
@@ -37,9 +37,12 @@ function formatMonth(ym: string): string {
   return new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
 }
 
-// Stable formatter refs (module-scoped) so ResponsiveContainer's reconciler does
-// not see new function identities on every parent render — that was the source
-// of the cascade re-renders that timed out CDP for 30s+ on /reports.
+// Module-scoped formatter refs keep function identity stable across renders
+// without wrapping the chart in React.memo — that wrapping was suspected of
+// breaking ResponsiveContainer's cloneElement chain (initial render received
+// data=[] and the YAxis scale cached at 0, so when real data arrived the bars
+// rendered flat). useMemo on chartData below is enough to avoid the cascade
+// re-renders that timed out CDP in the original audit (PR #46).
 const yAxisFormatter = (v: number) => `${(v / 1000).toFixed(0)}k`;
 const tooltipFormatter = (v: number) => fmt.currency(v);
 const tooltipLabelStyle = { fontSize: 12 };
@@ -47,7 +50,7 @@ const tooltipContentStyle = { fontSize: 12 };
 const xAxisTickStyle = { fontSize: 11 };
 const yAxisTickStyle = { fontSize: 11 };
 
-const MonthlyRevenueChart = memo(function MonthlyRevenueChart({
+function MonthlyRevenueChart({
   data,
 }: { data: Array<{ name: string; revenue: number; n: number }> }) {
   return (
@@ -61,9 +64,9 @@ const MonthlyRevenueChart = memo(function MonthlyRevenueChart({
       </BarChart>
     </ResponsiveContainer>
   );
-});
+}
 
-const PipelineChart = memo(function PipelineChart({
+function PipelineChart({
   data, stageColors,
 }: {
   data: Array<{ name: string; total: number; count: number; status: string }>;
@@ -83,7 +86,7 @@ const PipelineChart = memo(function PipelineChart({
       </BarChart>
     </ResponsiveContainer>
   );
-});
+}
 
 export default function Reports() {
   return (
