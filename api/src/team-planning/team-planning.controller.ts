@@ -45,4 +45,13 @@ export class TeamPlanningController {
   getMyPlanning(@CurrentUser('id') userId: string, @Query('weekStart') weekStart: string) {
     return this.service.getMyPlanning(userId, weekStart);
   }
+
+  @Post('copy-week')
+  copyWeek(
+    @Body() dto: { sourceWeekStart: string; targetWeekStart: string },
+    @Req() req: any,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.service.copyWeek(req.companyId, dto.sourceWeekStart, dto.targetWeekStart, userId);
+  }
 }

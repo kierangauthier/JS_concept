@@ -490,6 +490,86 @@ export class TeamPlanningService {
     };
   }
 
+  /**
+   * Copy every slot of `sourceWeekStart` into `targetWeekStart`, preserving
+   * teamId / jobId / startHour / endHour / day-of-week. Slots that would
+   * overlap an existing target slot are silently skipped (we don't want a
+   * single conflict to abort the whole copy). Returns counts so the UI can
+   * report `X copied, Y skipped`.
+   */
+  async copyWeek(
+    companyId: string | null,
+    sourceWeekStart: string,
+    targetWeekStart: string,
+    userId: string,
+  ) {
+    if (!companyId) throw new ForbiddenException('Cannot copy under GROUP scope');
+
+    const sourceMonday = this.getWeekStart(sourceWeekStart);
+    const targetMonday = this.getWeekStart(targetWeekStart);
+    if (sourceMonday.getTime() === targetMonday.getTime()) {
+      throw new BadRequestException('Source and target weeks must differ');
+    }
+
+    const sourceWeek = await this.prisma.teamPlanningWeek.findUnique({
+      where: { companyId_weekStart: { companyId, weekStart: sourceMonday } },
+      include: { slots: true },
+    });
+    if (!sourceWeek || sourceWeek.slots.length === 0) {
+      return { copied: 0, skipped: 0, message: 'Source week has no slot to copy' };
+    }
+
+    const targetWeek = await this.prisma.teamPlanningWeek.upsert({
+      where: { companyId_weekStart: { companyId, weekStart: targetMonday } },
+      create: { companyId, weekStart: targetMonday },
+      update: {},
+    });
+    if (targetWeek.status === 'locked') {
+      throw new BadRequestException('Target week is locked');
+    }
+
+    const existingTargetSlots = await this.prisma.teamPlanningSlot.findMany({
+      where: { weekId: targetWeek.id },
+    });
+
+    let copied = 0, skipped = 0;
+    const dayOffsetMs = targetMonday.getTime() - sourceMonday.getTime();
+    for (const s of sourceWeek.slots) {
+      const newDate = new Date(s.date.getTime() + dayOffsetMs);
+      const overlap = existingTargetSlots.find(es =>
+        es.teamId === s.teamId &&
+        es.date.toISOString().slice(0, 10) === newDate.toISOString().slice(0, 10) &&
+        s.startHour < es.endHour && s.endHour > es.startHour
+      );
+      if (overlap) { skipped++; continue; }
+
+      const created = await this.prisma.teamPlanningSlot.create({
+        data: {
+          weekId: targetWeek.id,
+          teamId: s.teamId,
+          date: newDate,
+          startHour: s.startHour,
+          endHour: s.endHour,
+          jobId: s.jobId,
+          notes: s.notes,
+        },
+      });
+      existingTargetSlots.push(created);
+      copied++;
+    }
+
+    this.audit.log?.({
+      action: 'PLANNING_WEEK_COPY',
+      entity: 'team-planning-week',
+      entityId: targetWeek.id,
+      after: { sourceWeekStart, targetWeekStart, copied, skipped },
+      companyId,
+      userId,
+    });
+
+    return { copied, skipped };
+  }
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   private getWeekStart(dateStr: string): Date {

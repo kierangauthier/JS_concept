@@ -10,7 +10,7 @@ import {
   useJobs, usePlanningSlots, useCreateSlot, useDeleteSlot,
   useTeams, useCreateTeam, useAddTeamMember, useRemoveTeamMember,
   useTeamPlanning, useCreateTeamSlot, useDeleteTeamSlot,
-  useLockWeek, useUnlockWeek, useSendPlanning,
+  useLockWeek, useUnlockWeek, useSendPlanning, useCopyWeek,
   useUsers,
 } from '@/services/api/hooks';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,14 @@ import {
 import { PlanningSlot } from '@/services/api/planning.api';
 import { TeamPlanningSlotData } from '@/services/api/team-planning.api';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+
+const MIN_HOUR = 6;
+const MAX_HOUR = 22;
+const DEFAULT_START = 7;
+const DEFAULT_END = 17;
+const JOB_DRAG_MIME = 'application/x-cm-job';
+const SLOT_DRAG_MIME = 'application/x-cm-slot';
 import { toast } from 'sonner';
 import { useHotkeys } from '@/hooks/use-hotkeys';
 
@@ -192,9 +200,20 @@ export default function Planning() {
 
       {activeJobs.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground font-medium uppercase">Chantiers :</span>
+          <span className="text-xs text-muted-foreground font-medium uppercase">Chantiers — glissez sur une cellule :</span>
           {activeJobs.map(j => (
-            <span key={j.id} className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${jobColorMap[j.id]}`}>
+            <span
+              key={j.id}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'copy';
+                e.dataTransfer.setData(JOB_DRAG_MIME, j.id);
+                // Some browsers require text/plain to start the drag at all.
+                e.dataTransfer.setData('text/plain', `job:${j.id}`);
+              }}
+              className={`text-[10px] font-medium px-2 py-0.5 rounded-full cursor-grab active:cursor-grabbing select-none ${jobColorMap[j.id]}`}
+              title={`Glissez ${j.reference} sur une cellule du planning`}
+            >
               {j.reference} — {j.title}
             </span>
           ))}
@@ -233,6 +252,11 @@ function TeamPlanningView({
   const [slotToDelete, setSlotToDelete] = useState<TeamPlanningSlotData | null>(null);
   const [draggedSlotId, setDraggedSlotId] = useState<string | null>(null);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
+  const [pendingJobAssign, setPendingJobAssign] = useState<{
+    teamId: string; teamName: string; date: Date; jobId: string; jobRef: string; jobTitle: string;
+    startHour: number; endHour: number;
+  } | null>(null);
+  const copyWeek = useCopyWeek();
 
   const status = weekData?.status ?? 'draft';
   const isLocked = status === 'locked';
@@ -241,6 +265,15 @@ function TeamPlanningView({
 
   async function handleAssign(teamId: string, date: Date, startHour: number, endHour: number, jobId: string) {
     const dateStr = toDateStr(date);
+    const holidayName = getHolidayName(date);
+    if (holidayName) {
+      toast.error(`Jour férié (${holidayName}) — assignation refusée.`);
+      return;
+    }
+    if (startHour < MIN_HOUR || endHour > MAX_HOUR) {
+      toast.error(`Heures hors plage ${MIN_HOUR}h–${MAX_HOUR}h.`);
+      return;
+    }
     if (hasOverlap(slots, teamId, dateStr, startHour, endHour)) {
       toast.error(`Créneau en conflit : ${startHour}h–${endHour}h chevauche un créneau existant.`);
       return;
@@ -318,6 +351,23 @@ function TeamPlanningView({
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onOpenTeamDrawer}>
             <Users className="h-3 w-3 mr-1" /> Gérer les équipes
           </Button>
+          {!isLocked && (
+            <Button
+              variant="outline" size="sm" className="h-7 text-xs"
+              disabled={copyWeek.isPending}
+              title="Copier les créneaux de la semaine précédente sur cette semaine"
+              onClick={() => {
+                const prevMonday = new Date(weekDays[0]);
+                prevMonday.setDate(prevMonday.getDate() - 7);
+                copyWeek.mutate({
+                  sourceWeekStart: toDateStr(prevMonday),
+                  targetWeekStart: weekStart,
+                });
+              }}
+            >
+              {copyWeek.isPending ? 'Copie…' : 'Recopier S-1'}
+            </Button>
+          )}
           {!isLocked && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -419,7 +469,7 @@ function TeamPlanningView({
                     const totalHours = getDayHours(team.id, dateStr);
 
                     const cellKey = `${team.id}_${dateStr}`;
-                    const isDropTarget = dragOverCell === cellKey && draggedSlotId !== null;
+                    const isDropTarget = dragOverCell === cellKey;
                     const holidayName = getHolidayName(day);
 
                     return (
@@ -427,11 +477,13 @@ function TeamPlanningView({
                         key={di}
                         className={`${di > 0 ? 'border-l' : ''} ${isToday(day) ? 'bg-primary/5' : ''} ${holidayName ? 'bg-rose-50' : ''} ${isDropTarget ? 'bg-primary/15 ring-2 ring-primary ring-inset' : ''}`}
                         onDragOver={(e) => {
-                          if (draggedSlotId && !isLocked) {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-                            if (dragOverCell !== cellKey) setDragOverCell(cellKey);
-                          }
+                          if (isLocked || holidayName) return;
+                          // Accept both slot-move (mime SLOT_DRAG_MIME) and job-from-pill (JOB_DRAG_MIME).
+                          const types = e.dataTransfer.types;
+                          if (!types.includes(SLOT_DRAG_MIME) && !types.includes(JOB_DRAG_MIME) && !draggedSlotId) return;
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = types.includes(JOB_DRAG_MIME) ? 'copy' : 'move';
+                          if (dragOverCell !== cellKey) setDragOverCell(cellKey);
                         }}
                         onDragLeave={() => {
                           if (dragOverCell === cellKey) setDragOverCell(null);
@@ -439,7 +491,25 @@ function TeamPlanningView({
                         onDrop={(e) => {
                           e.preventDefault();
                           setDragOverCell(null);
-                          if (isLocked || !draggedSlotId) return;
+                          if (isLocked) return;
+                          if (holidayName) {
+                            toast.error(`Jour férié (${holidayName}) — assignation refusée.`);
+                            return;
+                          }
+                          const droppedJobId = e.dataTransfer.getData(JOB_DRAG_MIME);
+                          if (droppedJobId) {
+                            // New assignation — open the confirm modal with sane defaults.
+                            const job = activeJobs.find((j: any) => j.id === droppedJobId);
+                            if (!job) return;
+                            setPendingJobAssign({
+                              teamId: team.id, teamName: team.name, date: day,
+                              jobId: job.id, jobRef: job.reference, jobTitle: job.title,
+                              startHour: DEFAULT_START, endHour: DEFAULT_END,
+                            });
+                            return;
+                          }
+                          // Else: existing-slot move (legacy behaviour).
+                          if (!draggedSlotId) return;
                           const slot = teamSlots.find(s => s.id === draggedSlotId);
                           if (!slot) return;
                           if (slot.teamId !== team.id) {
@@ -490,8 +560,9 @@ function TeamPlanningView({
                                 onDragStart={(e) => {
                                   setDraggedSlotId(slot.id);
                                   e.dataTransfer.effectAllowed = 'move';
-                                  // Some browsers require data to be set for the drag to start.
-                                  e.dataTransfer.setData('text/plain', slot.id);
+                                  e.dataTransfer.setData(SLOT_DRAG_MIME, slot.id);
+                                  // Some browsers require text/plain to start the drag at all.
+                                  e.dataTransfer.setData('text/plain', `slot:${slot.id}`);
                                 }}
                                 onDragEnd={() => { setDraggedSlotId(null); setDragOverCell(null); }}
                                 className={`absolute left-5 right-1 rounded px-1 flex items-center gap-0.5 group overflow-hidden ${jobColorMap[slot.jobId] || 'bg-muted text-muted-foreground'} ${isLocked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-40' : ''}`}
@@ -576,6 +647,69 @@ function TeamPlanningView({
           setSlotToDelete(null);
         }}
       />
+
+      {/* Confirm new job assignation (after drop on cell) */}
+      <Dialog
+        open={!!pendingJobAssign}
+        onOpenChange={(open) => !open && setPendingJobAssign(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nouveau créneau</DialogTitle>
+            <DialogDescription>
+              {pendingJobAssign && (
+                <span className="text-xs">
+                  <strong>{pendingJobAssign.jobRef}</strong> — {pendingJobAssign.jobTitle}
+                  <br />
+                  Équipe <strong>{pendingJobAssign.teamName}</strong> · {pendingJobAssign.date.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'short' })}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {pendingJobAssign && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="pa-start">Début</Label>
+                <Input
+                  id="pa-start" type="number" min={MIN_HOUR} max={MAX_HOUR - 1}
+                  value={pendingJobAssign.startHour}
+                  onChange={(e) => setPendingJobAssign(p => p ? { ...p, startHour: parseInt(e.target.value, 10) || MIN_HOUR } : p)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pa-end">Fin</Label>
+                <Input
+                  id="pa-end" type="number" min={MIN_HOUR + 1} max={MAX_HOUR}
+                  value={pendingJobAssign.endHour}
+                  onChange={(e) => setPendingJobAssign(p => p ? { ...p, endHour: parseInt(e.target.value, 10) || MAX_HOUR } : p)}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingJobAssign(null)}>Annuler</Button>
+            <Button
+              disabled={createSlot.isPending}
+              onClick={async () => {
+                if (!pendingJobAssign) return;
+                const { teamId, date, jobId, startHour, endHour } = pendingJobAssign;
+                if (startHour < MIN_HOUR || endHour > MAX_HOUR) {
+                  toast.error(`Heures hors plage ${MIN_HOUR}h–${MAX_HOUR}h.`);
+                  return;
+                }
+                if (endHour <= startHour) {
+                  toast.error(`L'heure de fin doit être après l'heure de début.`);
+                  return;
+                }
+                await handleAssign(teamId, date, startHour, endHour, jobId);
+                setPendingJobAssign(null);
+              }}
+            >
+              {createSlot.isPending ? 'Création…' : 'Confirmer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
