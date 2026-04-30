@@ -32,6 +32,7 @@ import {
   useQuoteTemplates, useCreateQuoteTemplate, useCreateQuoteFromTemplate, useDeleteQuoteTemplate,
 } from '@/services/api/hooks';
 import { CreateQuotePayload } from '@/services/api/quotes.api';
+import { CatalogCombobox } from '@/components/shared/CatalogCombobox';
 
 interface QuoteLineForm {
   designation: string;
@@ -74,14 +75,15 @@ export default function Quotes() {
   const [formClientId, setFormClientId] = useState('');
   const [formSubject, setFormSubject] = useState('');
   const [formValidUntil, setFormValidUntil] = useState('');
+  const [formVatRate, setFormVatRate] = useState<number>(20);
   const [formLines, setFormLines] = useState<QuoteLineForm[]>([defaultLine()]);
   const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
   // Snapshot for dirty detection — null while the form is closed.
   const [formBaseline, setFormBaseline] = useState<unknown>(null);
 
   const formValuesForGuard = useMemo(
-    () => ({ clientId: formClientId, subject: formSubject, validUntil: formValidUntil, lines: formLines }),
-    [formClientId, formSubject, formValidUntil, formLines],
+    () => ({ clientId: formClientId, subject: formSubject, validUntil: formValidUntil, vatRate: formVatRate, lines: formLines }),
+    [formClientId, formSubject, formValidUntil, formVatRate, formLines],
   );
   const { guardClose: guardCloseForm } = useFormGuard(
     formValuesForGuard,
@@ -239,9 +241,10 @@ export default function Quotes() {
     d.setDate(d.getDate() + 30);
     const validUntil = toISODateLocal(d);
     setFormValidUntil(validUntil);
+    setFormVatRate(20);
     const initialLines = [defaultLine()];
     setFormLines(initialLines);
-    setFormBaseline({ clientId: '', subject: '', validUntil, lines: initialLines });
+    setFormBaseline({ clientId: '', subject: '', validUntil, vatRate: 20, lines: initialLines });
     setFormOpen(true);
   }
 
@@ -250,6 +253,7 @@ export default function Quotes() {
     setFormClientId(q.clientId);
     setFormSubject(q.subject);
     setFormValidUntil(q.validUntil ? q.validUntil.slice(0, 10) : '');
+    setFormVatRate(q.vatRate ?? 20);
     const lines = quoteDetail?.lines ?? [];
     setFormLines(
       lines.length > 0
@@ -297,6 +301,7 @@ export default function Quotes() {
       clientId: formClientId,
       subject: formSubject.trim(),
       validUntil: new Date(formValidUntil).toISOString(),
+      vatRate: formVatRate,
       lines: validLines,
     };
 
@@ -787,15 +792,29 @@ export default function Quotes() {
               />
             </div>
 
-            {/* Date validité */}
-            <div className="space-y-1.5">
-              <Label htmlFor="q-valid">Date de validité *</Label>
-              <Input
-                id="q-valid"
-                type="date"
-                value={formValidUntil}
-                onChange={e => setFormValidUntil(e.target.value)}
-              />
+            {/* Date validité + TVA */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="q-valid">Date de validité *</Label>
+                <Input
+                  id="q-valid"
+                  type="date"
+                  value={formValidUntil}
+                  onChange={e => setFormValidUntil(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="q-vat">Taux de TVA</Label>
+                <Select value={String(formVatRate)} onValueChange={v => setFormVatRate(parseFloat(v))}>
+                  <SelectTrigger id="q-vat"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0% (exonéré)</SelectItem>
+                    <SelectItem value="5.5">5,5% (réduit)</SelectItem>
+                    <SelectItem value="10">10% (intermédiaire)</SelectItem>
+                    <SelectItem value="20">20% (normal)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Lignes */}
@@ -823,11 +842,18 @@ export default function Quotes() {
                     {formLines.map((line, idx) => (
                       <tr key={idx}>
                         <td className="px-1 py-1">
-                          <Input
-                            className="h-7 text-xs"
+                          <CatalogCombobox
                             value={line.designation}
-                            onChange={e => updateLine(idx, 'designation', e.target.value)}
-                            placeholder="Désignation"
+                            onChange={(v) => updateLine(idx, 'designation', v)}
+                            onPickProduct={(p) => {
+                              setFormLines(prev => prev.map((l, i) => i === idx ? {
+                                ...l,
+                                designation: p.designation,
+                                unit: p.unit,
+                                unitPrice: p.salePrice,
+                                costPrice: p.costPrice ?? 0,
+                              } : l));
+                            }}
                           />
                         </td>
                         <td className="px-1 py-1">
