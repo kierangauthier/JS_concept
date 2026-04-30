@@ -8,6 +8,7 @@ import {
 } from '@/services/api/hooks';
 import { Team, TeamMemberInfo } from '@/services/api/teams.api';
 import { HrDocument } from '@/services/api/hr.api';
+import { toISODateLocal } from '@/lib/format';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -67,10 +68,6 @@ function getMonday(date: Date): Date {
   d.setDate(diff);
   d.setHours(0, 0, 0, 0);
   return d;
-}
-
-function toISODate(d: Date): string {
-  return d.toISOString().slice(0, 10);
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────
@@ -451,15 +448,15 @@ function DocumentsTab({ userId }: { userId: string }) {
 
 function PlanningTab({ userId }: { userId: string }) {
   const monday = getMonday(new Date());
-  const weekStart = toISODate(monday);
-  const weekEnd = toISODate(new Date(monday.getTime() + 4 * 86400000));
+  const weekStart = toISODateLocal(monday);
+  const weekEnd = toISODateLocal(new Date(monday.getTime() + 4 * 86400000));
 
   const { data: activity, isLoading } = useUserActivity(userId, weekStart, weekEnd);
 
   const days = Array.from({ length: 5 }, (_, i) => {
     const d = new Date(monday.getTime() + i * 86400000);
     return {
-      date: toISODate(d),
+      date: toISODateLocal(d),
       label: d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }),
     };
   });
@@ -507,9 +504,9 @@ function ActivityTab({ userId }: { userId: string }) {
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return toISODate(d);
+    return toISODateLocal(d);
   });
-  const [toDate, setToDate] = useState(() => toISODate(new Date()));
+  const [toDate, setToDate] = useState(() => toISODateLocal(new Date()));
   const { data: activity, isLoading } = useUserActivity(userId, fromDate, toDate);
 
   if (isLoading) {

@@ -9,6 +9,7 @@ import { CompanySelect } from '@/components/shared/CompanySelect';
 import { ActivityFeed } from '@/components/shared/ActivityFeed';
 import { FileUploader } from '@/components/shared/FileUploader';
 import { Job } from '@/types';
+import { toISODateLocal } from '@/lib/format';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -126,7 +127,7 @@ export default function Jobs() {
     setEditingJob(null);
     setFormTitle('');
     setFormAddress('');
-    const startDate = new Date().toISOString().slice(0, 10);
+    const startDate = toISODateLocal(new Date());
     setFormStartDate(startDate);
     setFormEndDate('');
     setFormQuoteId('');

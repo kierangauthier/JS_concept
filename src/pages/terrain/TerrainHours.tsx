@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { PullToRefresh } from '@/components/terrain/PullToRefresh';
+import { toISODateLocal } from '@/lib/format';
 
 export default function TerrainHours() {
   const queryClient = useQueryClient();
@@ -34,7 +35,7 @@ export default function TerrainHours() {
   // Quick entry form state
   const [formOpen, setFormOpen] = useState(false);
   const [formJobId, setFormJobId] = useState('');
-  const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
+  const [formDate, setFormDate] = useState(toISODateLocal(new Date()));
   const [formStart, setFormStart] = useState('07:30');
   const [formEnd, setFormEnd] = useState('16:00');
   const [formDesc, setFormDesc] = useState('');

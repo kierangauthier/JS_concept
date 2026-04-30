@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Download, ChevronLeft, ChevronRight, Users, HardHat } from 'lucide-react';
 import { toast } from 'sonner';
+import { toISODateLocal } from '@/lib/format';
 
 function getMonday(d: Date): Date {
   const day = d.getDay();
@@ -16,10 +17,8 @@ function getMonday(d: Date): Date {
   return monday;
 }
 
-function toISO(d: Date) { return d.toISOString().slice(0, 10); }
-
 export default function Reports() {
-  const [weekOf, setWeekOf] = useState(() => toISO(getMonday(new Date())));
+  const [weekOf, setWeekOf] = useState(() => toISODateLocal(getMonday(new Date())));
   const [groupBy, setGroupBy] = useState<'user' | 'job'>('user');
   const [exporting, setExporting] = useState(false);
 
@@ -28,13 +27,13 @@ export default function Reports() {
   function prevWeek() {
     const d = new Date(weekOf);
     d.setDate(d.getDate() - 7);
-    setWeekOf(toISO(d));
+    setWeekOf(toISODateLocal(d));
   }
 
   function nextWeek() {
     const d = new Date(weekOf);
     d.setDate(d.getDate() + 7);
-    setWeekOf(toISO(d));
+    setWeekOf(toISODateLocal(d));
   }
 
   async function handleExport() {

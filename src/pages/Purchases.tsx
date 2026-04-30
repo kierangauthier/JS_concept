@@ -7,6 +7,7 @@ import { StatusBadge, CompanyBadge } from '@/components/shared/StatusBadge';
 import { ActivityFeed } from '@/components/shared/ActivityFeed';
 import { FileUploader } from '@/components/shared/FileUploader';
 import { Purchase, PurchaseStatus } from '@/types';
+import { toISODateLocal } from '@/lib/format';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -54,14 +55,14 @@ export default function Purchases() {
   const [formSupplierId, setFormSupplierId] = useState('');
   const [formJobId, setFormJobId] = useState('');
   const [formAmount, setFormAmount] = useState('');
-  const [formOrderedAt, setFormOrderedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [formOrderedAt, setFormOrderedAt] = useState(toISODateLocal(new Date()));
   const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
 
   function openCreateForm() {
     setFormSupplierId('');
     setFormJobId('');
     setFormAmount('');
-    setFormOrderedAt(new Date().toISOString().slice(0, 10));
+    setFormOrderedAt(toISODateLocal(new Date()));
     setFormOpen(true);
   }
 

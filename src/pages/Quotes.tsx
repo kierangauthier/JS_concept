@@ -7,6 +7,7 @@ import { StatusBadge, CompanyBadge } from '@/components/shared/StatusBadge';
 import { ActivityFeed } from '@/components/shared/ActivityFeed';
 import { FileUploader } from '@/components/shared/FileUploader';
 import { Quote, QuoteStatus } from '@/types';
+import { toISODateLocal } from '@/lib/format';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -168,7 +169,7 @@ export default function Quotes() {
   const [tplSubject, setTplSubject] = useState('');
   const [tplValidUntil, setTplValidUntil] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() + 30);
-    return d.toISOString().slice(0, 10);
+    return toISODateLocal(d);
   });
 
   async function handleSaveAsTemplate(e: React.FormEvent) {
@@ -236,7 +237,7 @@ export default function Quotes() {
     setFormSubject('');
     const d = new Date();
     d.setDate(d.getDate() + 30);
-    const validUntil = d.toISOString().slice(0, 10);
+    const validUntil = toISODateLocal(d);
     setFormValidUntil(validUntil);
     const initialLines = [defaultLine()];
     setFormLines(initialLines);
@@ -345,7 +346,7 @@ export default function Quotes() {
           setTplClientId('');
           setTplSubject('');
           const d = new Date(); d.setDate(d.getDate() + 30);
-          setTplValidUntil(d.toISOString().slice(0, 10));
+          setTplValidUntil(toISODateLocal(d));
           setFromTemplateOpen(true);
         }}>
           <BookTemplate className="h-3 w-3" /> Depuis un modèle

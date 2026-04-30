@@ -3,6 +3,7 @@ import { useApp, useFilterByCompany } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useTimeEntries, useCreateTimeEntry, useSubmitTimeEntries, useUpdateTimeEntry, useDeleteTimeEntry, useJobs } from '@/services/api/hooks';
 import { TimeEntry, Job } from '@/types';
+import { toISODateLocal } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +39,7 @@ export default function TimeEntries() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [formJobId, setFormJobId] = useState('');
-  const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
+  const [formDate, setFormDate] = useState(toISODateLocal(new Date()));
   const [formStart, setFormStart] = useState('08:00');
   const [formEnd, setFormEnd] = useState('17:00');
   const [formDescription, setFormDescription] = useState('');

@@ -1,4 +1,5 @@
 import { Link, Outlet } from "react-router-dom";
+import { toISODateLocal } from "@/lib/format";
 
 /**
  * Sober wrapper used by all public legal pages (/mentions-legales, /cgu, /cgv,
@@ -26,7 +27,7 @@ export default function LegalLayout() {
       </main>
       <footer className="border-t border-border mt-10">
         <div className="mx-auto max-w-3xl px-6 py-6 text-xs text-muted-foreground">
-          Dernière mise à jour : {new Date().toISOString().slice(0, 10)}.
+          Dernière mise à jour : {toISODateLocal(new Date())}.
         </div>
       </footer>
     </div>

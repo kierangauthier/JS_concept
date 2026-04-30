@@ -7,6 +7,7 @@ import {
   useRejectAbsence, useDeleteAbsence, useCreateAbsenceType,
 } from '@/services/api/hooks';
 import { Absence } from '@/services/api/absences.api';
+import { toISODateLocal } from '@/lib/format';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,7 +101,7 @@ export default function Absences() {
 
   function getAbsencesForDate(date: Date): Absence[] {
     if (!absences) return [];
-    const dateStr = date.toISOString().slice(0, 10);
+    const dateStr = toISODateLocal(date);
     return absences.filter(a => {
       if (a.status === 'rejected') return false;
       return dateStr >= a.startDate && dateStr <= a.endDate;

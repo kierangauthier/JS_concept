@@ -13,6 +13,7 @@ import { CompanySelect } from '@/components/shared/CompanySelect';
 import { ActivityFeed } from '@/components/shared/ActivityFeed';
 import { FileUploader } from '@/components/shared/FileUploader';
 import { Invoice, InvoiceStatus } from '@/types';
+import { toISODateLocal } from '@/lib/format';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -81,7 +82,7 @@ export default function Invoicing() {
   const [formClientId, setFormClientId] = useState('');
   const [formJobId, setFormJobId] = useState('');
   const [formAmount, setFormAmount] = useState('');
-  const [formIssuedAt, setFormIssuedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [formIssuedAt, setFormIssuedAt] = useState(toISODateLocal(new Date()));
   const [formDueDate, setFormDueDate] = useState('');
   const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
 
@@ -125,7 +126,7 @@ export default function Invoicing() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
   });
-  const [fecTo, setFecTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fecTo, setFecTo] = useState(() => toISODateLocal(new Date()));
   const [fecLoading, setFecLoading] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('fec');
   const [fecJournal, setFecJournal] = useState<FecJournal>('ALL');
@@ -189,7 +190,7 @@ export default function Invoicing() {
   const [sitFormOpen, setSitFormOpen] = useState(false);
   const [sitPercentage, setSitPercentage] = useState('');
   const [sitDescription, setSitDescription] = useState('');
-  const [sitDate, setSitDate] = useState(new Date().toISOString().slice(0, 10));
+  const [sitDate, setSitDate] = useState(toISODateLocal(new Date()));
 
   // Use situations from the dedicated query, fallback to invoice detail
   const invoiceSituations = situationsData ?? invoiceDetail?.situations ?? [];
@@ -207,7 +208,7 @@ export default function Invoicing() {
     const nextPct = lastSituationPct + 10;
     setSitPercentage(String(nextPct > 100 ? 100 : nextPct));
     setSitDescription('');
-    setSitDate(new Date().toISOString().slice(0, 10));
+    setSitDate(toISODateLocal(new Date()));
     setSitFormOpen(true);
   }
 
@@ -238,10 +239,10 @@ export default function Invoicing() {
     setFormClientId('');
     setFormJobId('');
     setFormAmount('');
-    setFormIssuedAt(new Date().toISOString().slice(0, 10));
+    setFormIssuedAt(toISODateLocal(new Date()));
     const d = new Date();
     d.setDate(d.getDate() + 30);
-    setFormDueDate(d.toISOString().slice(0, 10));
+    setFormDueDate(toISODateLocal(d));
     setFormOpen(true);
   }
 
