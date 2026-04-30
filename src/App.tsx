@@ -19,6 +19,8 @@ import Workshop from "./pages/Workshop";
 import Invoicing from "./pages/Invoicing";
 import AdminPage from "./pages/AdminPage";
 import AdminLegal from "./pages/AdminLegal";
+import AdminExportData from "./pages/AdminExportData";
+import AdminAuditLog from "./pages/AdminAuditLog";
 import ImportData from "./pages/ImportData";
 import Catalog from "./pages/Catalog";
 import TimeEntries from "./pages/TimeEntries";
@@ -138,6 +140,8 @@ const App = () => (
             <Route path="/admin" element={<RoleGuard roles={['admin']}><AdminPage /></RoleGuard>} />
             <Route path="/admin/legal" element={<RoleGuard roles={['admin']}><AdminLegal /></RoleGuard>} />
             <Route path="/admin/import" element={<RoleGuard roles={['admin']}><ImportData /></RoleGuard>} />
+            <Route path="/admin/export-donnees" element={<RoleGuard roles={['admin']}><AdminExportData /></RoleGuard>} />
+            <Route path="/admin/audit-log" element={<RoleGuard roles={['admin']}><AdminAuditLog /></RoleGuard>} />
             <Route path="/account" element={<Account />} />
           </Route>
 
