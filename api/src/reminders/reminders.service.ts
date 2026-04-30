@@ -14,7 +14,10 @@ export class RemindersService {
 
   // ─── Rules CRUD ──────────────────────────────────────────────────────────
 
-  async getRules(companyId: string) {
+  async getRules(companyId: string | null) {
+    // Reminder rules are tenant-bound; GROUP scope returns an empty list
+    // rather than crashing with a Prisma 'companyId must not be null'.
+    if (!companyId) return [];
     return this.prisma.reminderRule.findMany({
       where: { companyId },
       orderBy: { level: 'asc' },

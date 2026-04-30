@@ -86,19 +86,19 @@ async function request<T>(
     const retryRes = await fetch(`${BASE_URL}${path}`, { ...options, headers });
     if (!retryRes.ok) {
       const err = await retryRes.json().catch(() => ({}));
-      const msg = Array.isArray(err.message) ? err.message[0] : (err.message ?? 'Erreur');
-      throw new ApiError(retryRes.status, msg, err.code, err);
+      const rawMsg = Array.isArray(err.message) ? err.message[0] : (err.message ?? 'Erreur');
+      throw new ApiError(retryRes.status, sanitizeErrorMessage(rawMsg), err.code, err);
     }
     return retryRes.json() as Promise<T>;
   }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    const msg = Array.isArray(err.message) ? err.message[0] : (err.message ?? 'Erreur serveur');
+    const rawMsg = Array.isArray(err.message) ? err.message[0] : (err.message ?? 'Erreur serveur');
     if (res.status === 403 && err.code === 'AI_CONSENT_REQUIRED') {
       aiConsentBus.request();
     }
-    throw new ApiError(res.status, msg, err.code, err);
+    throw new ApiError(res.status, sanitizeErrorMessage(rawMsg), err.code, err);
   }
 
   // 204 No Content
@@ -131,6 +131,28 @@ async function silentRefresh(): Promise<boolean> {
   })();
 
   return _refreshPromise;
+}
+
+// ─── Error message hygiene ─────────────────────────────────────────────────
+
+/**
+ * Replaces internal stack-trace-y errors with a safe user-facing message.
+ * The raw message stays available on `ApiError.payload` for debugging.
+ *
+ * Triggers:
+ * - Prisma raw errors ('Invalid prisma.<model>.<method>() invocation: ...').
+ *   These leak through unhandled when an API endpoint forgets to guard
+ *   against null companyId in GROUP scope. The toaster pre-PR #42 was
+ *   showing the full stack to the user.
+ */
+function sanitizeErrorMessage(message: string): string {
+  if (typeof message !== 'string' || message.length === 0) return 'Erreur serveur';
+  if (/prisma\.[a-zA-Z]+\.[a-zA-Z]+\(\)/.test(message) ||
+      message.startsWith('Invalid `prisma.') ||
+      message.includes('PrismaClient')) {
+    return 'Une erreur technique est survenue. Veuillez réessayer.';
+  }
+  return message;
 }
 
 // ─── Error class ────────────────────────────────────────────────────────────

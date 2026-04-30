@@ -70,9 +70,13 @@ export class CompanyGuard implements CanActivate {
       throw new ForbiddenException(`Unknown company code: ${headerValue}`);
     }
 
-    // Only admin may target a company other than their own.
-    if (resolvedId !== user.companyId && user.role !== 'admin') {
-      throw new ForbiddenException('Cannot access another company');
+    // Only group admins (Acreed staff) may target a company other than their
+    // own. Tenant admins (e.g. e.sauron@js-concept.fr) are role='admin' but
+    // strictly bound to their company — pre-PR #42 they could escape via the
+    // header (B-NEW-1 tenant isolation breach). The fence is now isGroupAdmin,
+    // not role.
+    if (resolvedId !== user.companyId && !user.isGroupAdmin) {
+      throw new ForbiddenException('Accès interdit à cette entité');
     }
 
     request.companyId = resolvedId;
