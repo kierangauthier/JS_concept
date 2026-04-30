@@ -76,3 +76,25 @@ export const exportApi = {
   updateSettings: (data: Partial<AccountingSettings>): Promise<AccountingSettings> =>
     http.patch<AccountingSettings>('/settings/accounting', data),
 };
+
+export interface DataDumpManifest {
+  generatedAt: string;
+  generatedBy: string;
+  scope: string | null;
+  files: { name: string; records: number }[];
+  excluded: { kind: string; reason: string }[];
+  legalBasis: string;
+}
+
+export const dataDumpApi = {
+  getManifest: (): Promise<DataDumpManifest> =>
+    http.get<DataDumpManifest>('/admin/export/data/manifest'),
+
+  download: (type: 'clients' | 'quotes' | 'invoices' | 'jobs' | 'time-entries'): Promise<void> =>
+    fetchExport(`/api/admin/export/data/${type}`, `${type}.csv`),
+
+  saveManifest: (manifest: DataDumpManifest): void => {
+    const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, 'manifest.json');
+  },
+};

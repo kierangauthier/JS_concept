@@ -30,3 +30,6 @@ dist-ssr
 .env
 .env.local
 .env.production
+
+# Pre-PR local DB dumps
+backups/

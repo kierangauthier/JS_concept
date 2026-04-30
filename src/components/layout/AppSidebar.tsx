@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Users, FileText, HardHat, CalendarDays, MapPin,
   ShoppingCart, Wrench, Receipt, Settings, ChevronLeft, ChevronRight,
   UserCog, Package, ClipboardCheck, CalendarOff, BarChart3, Upload, Sparkles, Clock, Truck, ScrollText,
+  Download, ShieldCheck,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -15,6 +16,7 @@ const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Users, FileText, HardHat, CalendarDays, MapPin,
   ShoppingCart, Wrench, Receipt, Settings, UserCog, Package, Truck, ScrollText,
   ClipboardCheck, CalendarOff, BarChart3, Upload, Sparkles, Clock,
+  Download, ShieldCheck,
 };
 
 // Groups items by their `group` field, preserving order

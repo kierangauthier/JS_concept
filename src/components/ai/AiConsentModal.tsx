@@ -52,18 +52,16 @@ export function AiConsentModal({ open, onOpenChange, onGranted }: Props) {
 
         <div className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Les contenus que vous soumettez à l'IA (questions, devis, factures, emails)
-            sont traités par <strong>Anthropic PBC (États-Unis)</strong>, sous-traitant
-            sélectionné pour cette fonctionnalité.
-          </p>
-          <p>
-            Ce transfert hors Union européenne est encadré par les Clauses Contractuelles
-            Types de la Commission européenne (2021/914).
+            Les contenus soumis à l'IA (questions, devis, factures, emails) sont
+            traités par un fournisseur de modèles d'IA sélectionné par Acreed, dans
+            le respect du RGPD et encadré par des garanties contractuelles standards
+            de la Commission européenne.
           </p>
           <p>
             Vous pourrez retirer ce consentement à tout moment depuis votre espace
-            utilisateur. Pour plus d'informations, consultez notre{" "}
-            <a href="/confidentialite" className="underline underline-offset-4 hover:text-foreground">
+            utilisateur. L'identité du sous-traitant et les détails du traitement
+            sont décrits dans notre{" "}
+            <a href="/legal/confidentialite" className="underline underline-offset-4 hover:text-foreground">
               politique de confidentialité
             </a>.
           </p>

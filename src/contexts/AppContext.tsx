@@ -266,6 +266,8 @@ export const navItems: NavItem[] = [
 
   // ─── Administration (admin only) ─────────────────────────────────────────
   { title: 'Import',             path: '/admin/import',   icon: 'Upload',          roles: ['admin'],                                             group: 'Administration' },
+  { title: 'Export données',     path: '/admin/export-donnees', icon: 'Download',  roles: ['admin'] },
+  { title: 'Journal d\'audit',   path: '/admin/audit-log', icon: 'ShieldCheck',    roles: ['admin'] },
   { title: 'Infos légales',      path: '/admin/legal',    icon: 'ScrollText',      roles: ['admin'] },
   { title: 'Paramètres',         path: '/admin',          icon: 'Settings',        roles: ['admin'] },
 
