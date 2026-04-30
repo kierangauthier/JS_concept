@@ -36,6 +36,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { AiModule } from './ai/ai.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { GdprModule } from './gdpr/gdpr.module';
+import { LegalModule } from './legal/legal.module';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -84,6 +85,7 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     AiModule,
     KnowledgeModule,
     GdprModule,
+    LegalModule,
   ],
   controllers: [HealthController],
   providers: [
