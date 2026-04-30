@@ -5,7 +5,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('api/vendors')
-@Roles('admin', 'conducteur')
+@Roles('admin')
 export class SuppliersController {
   constructor(private suppliersService: SuppliersService) {}
 

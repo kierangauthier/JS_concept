@@ -5,7 +5,7 @@ import {
   TrendingUp, FileText, Receipt, AlertTriangle,
   Camera, ShoppingCart, CheckCircle2, ArrowRight, Clock,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useQuotes, useJobs, useInvoices, usePurchases, useTimeEntries, useWorkshopItems, useDashboardMargins, useCashflow, usePipelineReport } from '@/services/api/hooks';
 import { CashflowWidget } from '@/components/dashboard/CashflowWidget';
 import { AiBriefingWidget } from '@/components/ai';
@@ -23,7 +23,18 @@ interface Alert {
 
 export default function Dashboard() {
   const { currentUser } = useApp();
+  // Technicians have a dedicated mobile-first home (/terrain) and shouldn't
+  // see the management Dashboard at all. Belt-and-braces with the route-level
+  // RoleGuard, but also avoids a flash of forbidden KPI before the redirect.
+  if (currentUser?.role === 'technicien') {
+    return <Navigate to="/terrain" replace />;
+  }
+
   const isComptable = currentUser?.role === 'comptable';
+  const isAdmin = currentUser?.role === 'admin';
+  // Conducteurs pilot operations, not finance — show them activity KPI but
+  // not CA / Créances / Pipeline.
+  const showFinancialKpi = isAdmin || isComptable;
   const { data: apiQuotes, isLoading: loadingQuotes } = useQuotes();
   const { data: apiJobs, isLoading: loadingJobs } = useJobs();
   const { data: apiInvoices, isLoading: loadingInvoices } = useInvoices();
@@ -77,11 +88,17 @@ export default function Dashboard() {
     { label: 'Créances', value: `${(totalInvoiced / 1000).toFixed(0)}k €`, icon: Receipt, color: 'text-warning' },
     { label: 'Factures en retard', value: cashflow?.expectedInflows?.filter(i => i.status === 'overdue').length ?? overdueInvoices.length, icon: AlertTriangle, color: 'text-destructive' },
     { label: 'Dettes fournisseurs', value: `${(purchasesUnpaid / 1000).toFixed(0)}k €`, icon: ShoppingCart, color: 'text-info' },
-  ] : [
+  ] : isAdmin ? [
     { label: 'CA encaissé', value: `${(totalCA / 1000).toFixed(0)}k €`, icon: TrendingUp, color: 'text-success' },
     { label: 'Marge moyenne', value: avgMargin !== null ? `${avgMargin}%` : '—', icon: TrendingUp, color: marginColor },
     { label: 'Créances', value: `${(totalInvoiced / 1000).toFixed(0)}k €`, icon: Receipt, color: 'text-warning' },
     { label: 'Pipeline devis', value: `${(((pipelineReport?.stages?.find(s => s.status === 'sent')?.total) ?? pendingQuotes.reduce((s, q) => s + q.amount, 0)) / 1000).toFixed(0)}k €`, icon: FileText, color: 'text-primary' },
+  ] : [
+    // Conducteur — operational KPI only, no finance.
+    { label: 'Chantiers en cours', value: activeJobs.length, icon: TrendingUp, color: 'text-primary' },
+    { label: 'Heures à valider', value: timeEntries.filter(t => t.status === 'submitted').length, icon: Clock, color: 'text-warning' },
+    { label: 'Atelier — BAT en attente', value: batPending.length, icon: AlertTriangle, color: 'text-warning' },
+    { label: 'Marge moyenne', value: avgMargin !== null ? `${avgMargin}%` : '—', icon: TrendingUp, color: marginColor },
   ];
 
   // Command Center alerts
@@ -268,11 +285,11 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Zone 3 — Cashflow prévisionnel (info stratégique remontée) */}
-      {!isComptable && <CashflowWidget />}
+      {/* Zone 3 — Cashflow prévisionnel (info stratégique, admin only) */}
+      {isAdmin && <CashflowWidget />}
 
-      {/* Zone 4 — AI Briefing (résumé textuel, en bas) */}
-      {!isComptable && <AiBriefingWidget />}
+      {/* Zone 4 — AI Briefing (résumé textuel, admin only) */}
+      {isAdmin && <AiBriefingWidget />}
     </div>
   );
 }

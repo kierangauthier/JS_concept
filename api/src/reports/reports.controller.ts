@@ -4,7 +4,7 @@ import { ReportsService } from './reports.service';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('api/reports')
-@Roles('admin', 'conducteur')
+@Roles('admin')
 export class ReportsController {
   constructor(private reportsService: ReportsService) {}
 
