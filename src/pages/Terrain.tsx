@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useFilterByCompany, useApp } from '@/contexts/AppContext';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -46,6 +47,15 @@ export default function Terrain() {
     setPhotoJobId(jobs.length > 0 ? jobs[0].id : '');
     setPhotoFormOpen(true);
   }
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('capture') === 'photo' && jobs.length > 0) {
+      openPhotoForm();
+      searchParams.delete('capture');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, jobs, setSearchParams]);
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -233,6 +243,7 @@ export default function Terrain() {
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp,image/heic"
+              capture="environment"
               onChange={handlePhotoUpload}
               className="hidden"
               id="photo-input"

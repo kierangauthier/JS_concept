@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, AlertCircle } from 'lucide-react';
@@ -22,26 +22,38 @@ export function PdfPreviewDialog({ open, onOpenChange, title, fetchBlobUrl, onDo
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Parents pass fetchBlobUrl as an inline arrow (new ref each render); pin it
+  // so the effect only re-runs when `open` flips, not on every parent re-render.
+  const fetchRef = useRef(fetchBlobUrl);
+  fetchRef.current = fetchBlobUrl;
+
   useEffect(() => {
-    if (!open) return;
-    let revoked = false;
+    if (!open) {
+      setUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
     let currentUrl: string | null = null;
     setLoading(true);
     setError(null);
     setUrl(null);
-    fetchBlobUrl()
+    fetchRef.current()
       .then(u => {
-        if (revoked) { URL.revokeObjectURL(u); return; }
+        if (cancelled) { URL.revokeObjectURL(u); return; }
         currentUrl = u;
         setUrl(u);
       })
-      .catch(err => setError(err?.message ?? 'Erreur lors de la génération du PDF'))
-      .finally(() => setLoading(false));
+      .catch(err => { if (!cancelled) setError(err?.message ?? 'Erreur lors de la génération du PDF'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => {
-      revoked = true;
+      cancelled = true;
       if (currentUrl) URL.revokeObjectURL(currentUrl);
     };
-  }, [open, fetchBlobUrl]);
+  }, [open]);
+
+  const handleClose = () => onOpenChange(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,7 +89,7 @@ export function PdfPreviewDialog({ open, onOpenChange, title, fetchBlobUrl, onDo
               Télécharger
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>
+          <Button variant="outline" onClick={handleClose}>Fermer</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
