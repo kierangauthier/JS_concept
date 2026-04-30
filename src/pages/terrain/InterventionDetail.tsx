@@ -193,7 +193,7 @@ export default function InterventionDetail() {
     <div className="max-w-lg mx-auto space-y-4 pb-4">
       {/* Back header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="h-9 w-9 rounded-full bg-card border flex items-center justify-center active:scale-95 transition-transform">
+        <button onClick={() => navigate(-1)} aria-label="Retour" className="h-11 w-11 rounded-full bg-card border flex items-center justify-center active:scale-95 transition-transform">
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="flex-1 min-w-0">
