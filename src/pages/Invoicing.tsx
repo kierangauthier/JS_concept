@@ -84,7 +84,7 @@ export default function Invoicing() {
   const [formAmount, setFormAmount] = useState('');
   const [formIssuedAt, setFormIssuedAt] = useState(toISODateLocal(new Date()));
   const [formDueDate, setFormDueDate] = useState('');
-  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
 
   // PDF download state
   const [pdfLoading, setPdfLoading] = useState(false);

@@ -152,6 +152,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // tenant and caching it under the new key.
     authStore.setCompanyScope(company);
     localStorage.setItem('selectedCompany', company);
+    // Drop every cached entry from the previous scope so the UI never shows
+    // stale items from another tenant during the brief refetch window. Brutal
+    // but bulletproof — every active query refetches under the new scope.
+    queryClient.removeQueries();
     setSelectedCompany(company);
   }, [currentUser]);
 

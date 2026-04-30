@@ -366,9 +366,9 @@ async function main() {
     const teamId   = TEAMS[teamKey as keyof typeof TEAMS];
     const techIds  = teamMembers[teamId];
 
-    const qRef = `DV${year}-${String(month).padStart(2,'0')}-${String(qSeq).padStart(3,'0')}`;
+    const qRef = `DEV-JS-${year}-${String(qSeq).padStart(3,'0')}`;
     const jRef = `CHT-JS-${year}-${String(jSeq).padStart(3,'0')}`;
-    const iRef = `FA${String(year).slice(2)}${String(iSeq).padStart(4,'0')}`;
+    const iRef = `FAC-JS-${year}-${String(iSeq).padStart(3,'0')}`;
 
     const quoteId = `q_js_${year}_${month}_${qSeq}`;
     const jobId   = `j_js_${year}_${month}_${jSeq}`;
@@ -471,7 +471,7 @@ async function main() {
   // ─── 7. PIPELINE COMMERCIAL (3 devis en cours) ─────────────────────────────
   await prisma.quote.create({
     data: {
-      id: 'q_js_pipe1', reference: 'DV2026-04-901',
+      id: 'q_js_pipe1', reference: 'DEV-JS-2026-901',
       subject: 'Mobilier parc des Ailes — Roanne Agglo',
       amount: 58400, status: 'sent', validUntil: d(2026,5,15),
       clientId: C.roannais, companyId: JS,
@@ -483,7 +483,7 @@ async function main() {
   });
   await prisma.quote.create({
     data: {
-      id: 'q_js_pipe2', reference: 'DV2026-04-902',
+      id: 'q_js_pipe2', reference: 'DEV-JS-2026-902',
       subject: 'Signalisation directionnelle ZI Nord — SEM',
       amount: 34800, status: 'sent', validUntil: d(2026,5,30),
       clientId: C.sem, companyId: JS,
@@ -495,7 +495,7 @@ async function main() {
   });
   await prisma.quote.create({
     data: {
-      id: 'q_js_pipe3', reference: 'DV2026-04-903',
+      id: 'q_js_pipe3', reference: 'DEV-JS-2026-903',
       subject: 'Mobilier parc Tarentaize — phase 3',
       amount: 42600, status: 'draft', validUntil: d(2026,5,25),
       clientId: C.sem, companyId: JS,

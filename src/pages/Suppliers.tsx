@@ -25,7 +25,7 @@ export default function Suppliers() {
 
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
   const [email, setEmail] = useState('');

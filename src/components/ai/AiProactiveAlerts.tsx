@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -12,9 +13,10 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   Wrench, Clock, TrendingUp, AlertTriangle, CheckCircle2,
-  Mail, RefreshCw, ChevronRight, Sparkles, Loader2,
+  Mail, RefreshCw, ChevronRight, Sparkles, Loader2, ShieldOff,
 } from 'lucide-react';
 import { api } from '@/services/api';
+import { ApiError } from '@/services/api/http';
 
 interface ProactiveAlert {
   type: 'maintenance_due' | 'quote_followup' | 'budget_overrun' | 'overdue_invoice' | 'upcoming_job';
@@ -64,9 +66,16 @@ const PRIORITY_BADGE: Record<string, string> = {
   medium:   'bg-yellow-100 text-yellow-800',
 };
 
+type ErrorState =
+  | { kind: 'consent'; code?: string }      // 403 + AI_CONSENT_REQUIRED — user opt-in missing
+  | { kind: 'unavailable' }                 // 503 / network / Anthropic down
+  | { kind: 'forbidden'; message: string }  // 403 with another code (role / scope)
+  | null;
+
 export default function AiProactiveAlerts() {
   const [data, setData] = useState<AlertsResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<ErrorState>(null);
   const [emailDialog, setEmailDialog] = useState<ProactiveAlert | null>(null);
   const [emailBody, setEmailBody] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
@@ -75,10 +84,19 @@ export default function AiProactiveAlerts() {
 
   async function loadAlerts() {
     setLoading(true);
+    setError(null);
     try {
       const d = await api.get<AlertsResponse>('/ai/proactive-alerts');
       setData(d.data);
     } catch (e) {
+      const err = e as ApiError;
+      if (err?.status === 403 && err?.code === 'AI_CONSENT_REQUIRED') {
+        setError({ kind: 'consent', code: err.code });
+      } else if (err?.status === 403) {
+        setError({ kind: 'forbidden', message: err.message ?? 'Accès refusé' });
+      } else {
+        setError({ kind: 'unavailable' });
+      }
       console.error('[ProactiveAlerts]', e);
     } finally {
       setLoading(false);
@@ -145,8 +163,34 @@ export default function AiProactiveAlerts() {
           </div>
         )}
 
-        {/* Alerts list */}
-        {visibleAlerts.length === 0 && !loading && (
+        {/* Error states (consent / unavailable) take precedence over the empty state */}
+        {error?.kind === 'consent' && !loading && (
+          <div className="text-center py-6 text-sm">
+            <ShieldOff className="h-8 w-8 mx-auto mb-2 text-amber-400" />
+            <p className="font-medium text-gray-700">Assistant IA indisponible</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Activez le consentement IA dans votre profil pour recevoir les alertes proactives.
+            </p>
+            <Link to="/account">
+              <Button size="sm" variant="outline" className="mt-3 text-xs h-7">
+                Activer le consentement
+              </Button>
+            </Link>
+          </div>
+        )}
+        {error?.kind === 'unavailable' && !loading && (
+          <div className="text-center py-6 text-sm text-gray-400">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+            <p className="font-medium text-gray-500">Assistant IA temporairement indisponible</p>
+            <p className="text-xs text-gray-400 mt-1">Réessayez dans quelques instants.</p>
+          </div>
+        )}
+        {error?.kind === 'forbidden' && !loading && (
+          <div className="text-center py-6 text-sm text-gray-400">{error.message}</div>
+        )}
+
+        {/* Alerts list — only when no error and the API returned an empty list */}
+        {!error && visibleAlerts.length === 0 && !loading && (
           <div className="text-center py-6 text-sm text-gray-400">
             <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-400" />
             Tout est sous contrôle 👌

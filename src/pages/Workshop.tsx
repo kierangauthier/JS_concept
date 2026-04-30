@@ -63,7 +63,7 @@ export default function Workshop() {
   const [formPriority, setFormPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [formDueDate, setFormDueDate] = useState('');
   const [formAssignedTo, setFormAssignedTo] = useState('');
-  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
 
   function openCreateForm() {
     setFormTitle('');

@@ -367,9 +367,9 @@ async function main() {
     const teamId   = TEAMS[teamKey as keyof typeof TEAMS];
     const techIds  = teamMembers[teamId];
 
-    const qRef = `ASP-DV${year}-${String(month).padStart(2,'0')}-${String(qSeq).padStart(3,'0')}`;
+    const qRef = `DEV-ASP-${year}-${String(qSeq).padStart(3,'0')}`;
     const jRef = `CHT-ASP-${year}-${String(jSeq).padStart(3,'0')}`;
-    const iRef = `ASP-FA${String(year).slice(2)}${String(iSeq).padStart(4,'0')}`;
+    const iRef = `FAC-ASP-${year}-${String(iSeq).padStart(3,'0')}`;
 
     const quoteId = `q_asp_${year}_${month}_${qSeq}`;
     const jobId   = `j_asp_${year}_${month}_${jSeq}`;
@@ -467,7 +467,7 @@ async function main() {
   // ─── 7. PIPELINE COMMERCIAL (3 devis en cours) ─────────────────────────────
   await prisma.quote.create({
     data: {
-      id: 'q_asp_pipe1', reference: 'ASP-DV2026-04-901',
+      id: 'q_asp_pipe1', reference: 'DEV-ASP-2026-901',
       subject: 'Signalisation Voies Lyonnaises 3 & 6 — Métropole GL',
       amount: 68400, status: 'sent', validUntil: d(2026,5,20),
       clientId: C.grandlyon, companyId: ASP,
@@ -479,7 +479,7 @@ async function main() {
   });
   await prisma.quote.create({
     data: {
-      id: 'q_asp_pipe2', reference: 'ASP-DV2026-04-902',
+      id: 'q_asp_pipe2', reference: 'DEV-ASP-2026-902',
       subject: 'Balisage longue durée A7 Ternay — tranche 2',
       amount: 54200, status: 'sent', validUntil: d(2026,5,31),
       clientId: C.dir, companyId: ASP,
@@ -491,7 +491,7 @@ async function main() {
   });
   await prisma.quote.create({
     data: {
-      id: 'q_asp_pipe3', reference: 'ASP-DV2026-04-903',
+      id: 'q_asp_pipe3', reference: 'DEV-ASP-2026-903',
       subject: 'Signalisation directionnelle Bourg-en-Bresse Nord — lot 3',
       amount: 38800, status: 'draft', validUntil: d(2026,5,28),
       clientId: C.bourg, companyId: ASP,

@@ -76,7 +76,7 @@ export default function Jobs() {
   const [formQuoteId, setFormQuoteId] = useState('');
   const [formHourlyRate, setFormHourlyRate] = useState('');
   const [formEstimatedHours, setFormEstimatedHours] = useState('');
-  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>('ASP');
+  const [formCompany, setFormCompany] = useState<'ASP' | 'JS'>(selectedCompany === 'JS' ? 'JS' : 'ASP');
   const [formBaseline, setFormBaseline] = useState<unknown>(null);
 
   const formValuesForGuard = useMemo(
